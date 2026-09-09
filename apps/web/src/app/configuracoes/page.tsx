@@ -61,6 +61,10 @@ export default async function SettingsPage() {
             <ProfileForm
               initialName={user.name}
               initialPhone={user.phone}
+              initialAvatar={user.avatar}
+              initialCompanyName={user.companyName}
+              initialCreci={user.creci}
+              isAgency={user.accountType === "AGENCY"}
               token={token}
             />
           </section>

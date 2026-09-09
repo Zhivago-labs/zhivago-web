@@ -57,6 +57,7 @@ export default async function ListingPage({ params }: Params) {
 
   // Imóvel de organização (B2B) não tem `owner` (fica null) — o "anunciante" público é a própria
   // organização, representada pelo corretor responsável (`agent`) como contato/link de perfil.
+  // A vitrine em /imobiliaria/[id] vale pra qualquer dono (imobiliária ou anfitrião pessoa física).
   const advertiser = listing.owner
     ? {
         id: listing.owner.id,
@@ -64,7 +65,7 @@ export default async function ListingPage({ params }: Params) {
         avatar: listing.owner.avatar,
         companyName: listing.owner.companyName,
         verified: listing.owner.accountType === "AGENCY" && (listing.owner.verified ?? false),
-        profileHref: listing.owner.accountType === "AGENCY" ? `/imobiliaria/${listing.owner.id}` : null,
+        profileHref: `/imobiliaria/${listing.owner.id}`,
       }
     : listing.organization && listing.agent
       ? {

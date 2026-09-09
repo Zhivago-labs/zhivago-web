@@ -22,12 +22,22 @@ export interface AgencyProfileUser {
   verified: boolean;
 }
 
+export interface AgencyProfileReview {
+  id: string;
+  rating: number;
+  comment: string | null;
+  createdAt: string;
+  user: { name: string; avatar: string | null };
+  listing: { id: string; name: string };
+}
+
 export interface AgencyProfile {
   user: AgencyProfileUser;
   // Presente quando o usuário do perfil pertence a uma organização (B2B) — nesse caso o portfólio
   // exibido já é o da organização inteira, não só o que esse membro criou.
   organization: { id: string; name: string; logo: string | null; verified: boolean } | null;
   listings: Listing[];
+  reviews: AgencyProfileReview[];
 }
 
 export async function getAgencyProfile(id: string): Promise<AgencyProfile | null> {
