@@ -1,0 +1,61 @@
+.ctaSection {
+  padding: 88px 0;
+  background: var(--paper);
+}
+
+.ctaSplit {
+  display: grid;
+  grid-template-columns: 1fr 1fr;
+  gap: 24px;
+}
+
+@media (max-width: 760px) {
+  .ctaSplit {
+    grid-template-columns: 1fr;
+  }
+}
+
+.ctaCard {
+  border-radius: 22px;
+  padding: 38px 34px;
+  display: flex;
+  flex-direction: column;
+  gap: 16px;
+}
+
+.ctaCard h3 {
+  font-family: var(--font-landing-serif), Georgia, serif;
+  font-size: 24px;
+  font-weight: 600;
+  max-width: 20ch;
+  margin: 0;
+}
+
+.ctaCard p {
+  font-size: 15px;
+  line-height: 1.55;
+  margin: 0;
+}
+
+.ctaCard a {
+  align-self: flex-start;
+  margin-top: 6px;
+}
+
+.a {
+  background: var(--paper-2);
+  border: 1px solid var(--sand);
+}
+
+.a p {
+  color: var(--slate);
+}
+
+.b {
+  background: var(--ink);
+  color: var(--paper);
+}
+
+.b p {
+  color: #b9bfca;
+}

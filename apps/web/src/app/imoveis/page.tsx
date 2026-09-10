@@ -1,10 +1,10 @@
 import { redirect } from "next/navigation";
-import { Sparkles } from "lucide-react";
 import type { Metadata } from "next";
 import type { Listing } from "@zhivago/shared";
 import { getListings } from "@/lib/api";
 import { getSessionUser } from "@/lib/session";
 import { ListingsExplorer } from "@/components/ListingsExplorer";
+import { ErrorState } from "@/components/ErrorState";
 import styles from "./page.module.css";
 
 export const metadata: Metadata = { title: "Explorar imóveis" };
@@ -26,26 +26,15 @@ export default async function ImoveisPage() {
     listings = [];
   }
 
-  const firstName = user?.name ? user.name.split(" ")[0] : "visitante";
-
   return (
     <main className={styles.main}>
       <div className={styles.heroSection}>
-        <div className={styles.greetingBadge}>
-          <Sparkles size={14} className={styles.sparkleIcon} />
-          <span>Olá, {firstName} 👋</span>
-        </div>
-
-        <h1 className={styles.title}>Encontre seu próximo imóvel</h1>
-        <p className={styles.subtitle}>
-          Explore as melhores opções de casas e apartamentos para alugar ou comprar com facilidade e segurança.
-        </p>
+        <h1 className={styles.title}>Explorar imóveis</h1>
+        <p className={styles.subtitle}>Casas e apartamentos para alugar ou comprar.</p>
       </div>
 
       {loadError ? (
-        <p className={styles.error}>
-          Não foi possível carregar os imóveis agora. Tente novamente em alguns instantes.
-        </p>
+        <ErrorState message="Tente novamente em alguns instantes." />
       ) : (
         <ListingsExplorer listings={listings} isAdmin={user?.role === "ADMIN"} />
       )}

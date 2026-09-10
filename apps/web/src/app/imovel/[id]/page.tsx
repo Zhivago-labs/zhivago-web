@@ -1,12 +1,14 @@
 import Link from "next/link";
 import { notFound, redirect } from "next/navigation";
 import type { Metadata } from "next";
-import { ArrowLeft, BedDouble, Bath, Car, Home, Building2, MessageCircle } from "lucide-react";
-import { getListing, formatPrice } from "@/lib/api";
+import type { Listing } from "@zhivago/shared";
+import { ArrowLeft, MessageCircle } from "lucide-react";
+import { getListing, getListings, formatPrice } from "@/lib/api";
 import { getSessionUser } from "@/lib/session";
 import { StartChatButton } from "@/components/chat/StartChatButton";
 import { BookingRequestForm } from "@/components/listing/BookingRequestForm";
 import { ListingGallery } from "@/components/listing/ListingGallery";
+import { ListingCard } from "@/components/ListingCard";
 import { AgencyBadge } from "@/components/AgencyBadge";
 import { FavoriteButton } from "@/components/favorites/FavoriteButton";
 import { ListingReviews } from "@/components/listing/ListingReviews";
@@ -15,7 +17,27 @@ import { ListingDescriptionSection } from "@/components/listing/ListingDescripti
 import { PropertyMap } from "@/components/listing/PropertyMap";
 import { HostCard } from "@/components/listing/HostCard";
 import { HouseRules } from "@/components/listing/HouseRules";
+import { RecordRecentView } from "@/components/listing/RecordRecentView";
 import styles from "./page.module.css";
+
+// Critério determinístico (sem IA/recomendação inventada): mesma categoria de negócio
+// (aluguel/venda têm semântica de preço diferente), pontuando por tipo, nº de quartos
+// e proximidade de preço — os únicos atributos estruturados disponíveis no modelo hoje.
+function getSimilarListings(all: Listing[], current: Listing, limit = 4): Listing[] {
+  return all
+    .filter((item) => item.id !== current.id && item.status === "APPROVED" && item.category === current.category)
+    .map((item) => {
+      let score = 0;
+      if (item.type === current.type) score += 3;
+      if (item.bedrooms === current.bedrooms) score += 2;
+      const priceDiff = Math.abs(item.price - current.price) / (current.price || 1);
+      score += Math.max(0, 2 - priceDiff * 2);
+      return { item, score };
+    })
+    .sort((a, b) => b.score - a.score)
+    .slice(0, limit)
+    .map(({ item }) => item);
+}
 
 type Params = { params: Promise<{ id: string }> };
 
@@ -50,6 +72,14 @@ export default async function ListingPage({ params }: Params) {
   const listing = await getListing(id);
 
   if (!listing) notFound();
+
+  let similarListings: Listing[] = [];
+  try {
+    const allListings = await getListings();
+    similarListings = getSimilarListings(allListings, listing);
+  } catch {
+    similarListings = [];
+  }
 
   const whatsapp = whatsAppLink(listing);
   const user = await getSessionUser();
@@ -93,6 +123,8 @@ export default async function ListingPage({ params }: Params) {
 
   return (
     <main className={styles.main}>
+      <RecordRecentView listingId={listing.id} />
+
       <div className={styles.gallerySection}>
         <ListingGallery images={listing.images} alt={listing.name}>
           <Link href="/imoveis" className={styles.backButton} aria-label="Voltar">
@@ -244,6 +276,17 @@ export default async function ListingPage({ params }: Params) {
           </div>
         </aside>
       </div>
+
+      {similarListings.length > 0 && (
+        <section className={styles.similarSection}>
+          <h2 className={styles.similarTitle}>Imóveis semelhantes</h2>
+          <div className={styles.similarGrid}>
+            {similarListings.map((item) => (
+              <ListingCard key={item.id} listing={item} />
+            ))}
+          </div>
+        </section>
+      )}
 
       <div className={styles.footer}>
         <div>

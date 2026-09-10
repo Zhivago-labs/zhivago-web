@@ -99,6 +99,39 @@
   color: inherit;
 }
 
+.tagRow {
+  display: flex;
+  align-items: center;
+  gap: 6px;
+  flex-wrap: wrap;
+  margin-bottom: 8px;
+}
+
+.typeTag,
+.categoryTag {
+  font-size: 11px;
+  font-weight: 700;
+  text-transform: uppercase;
+  letter-spacing: 0.03em;
+  color: var(--muted);
+  background: var(--background);
+  border: 1px solid var(--border);
+  padding: 3px 8px;
+  border-radius: var(--radius-sm);
+}
+
+.verifiedTag {
+  display: inline-flex;
+  align-items: center;
+  gap: 3px;
+  font-size: 11px;
+  font-weight: 700;
+  color: #6366f1;
+  background: #6366f122;
+  padding: 3px 8px;
+  border-radius: var(--radius-full);
+}
+
 .name {
   font-size: 18px;
   font-weight: 750;

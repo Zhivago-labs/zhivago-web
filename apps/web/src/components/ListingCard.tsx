@@ -2,12 +2,22 @@
 
 import { useState, useEffect } from "react";
 import Link from "next/link";
-import { BedDouble, Droplet, Car, Maximize2, X, ChevronLeft, ChevronRight, ArrowRight } from "lucide-react";
+import { BedDouble, Droplet, Car, Maximize2, X, ChevronLeft, ChevronRight, ArrowRight, BadgeCheck } from "lucide-react";
 import type { Listing } from "@zhivago/shared";
 import { formatPrice } from "@/lib/api";
 import { FavoriteButton } from "@/components/favorites/FavoriteButton";
 import { ModerateListingTrigger } from "@/components/admin/ModerateListingModal";
 import styles from "./ListingCard.module.css";
+
+const TYPE_LABELS: Record<Listing["type"], string> = {
+  casa: "Casa",
+  apartamento: "Apartamento",
+};
+
+const CATEGORY_LABELS: Record<Listing["category"], string> = {
+  aluguel: "Aluguel",
+  venda: "Venda",
+};
 
 export function ListingCard({ listing, isAdmin = false }: { listing: Listing; isAdmin?: boolean }) {
   // Garantir fallback idêntico ao do mobile
@@ -47,12 +57,24 @@ export function ListingCard({ listing, isAdmin = false }: { listing: Listing; is
     ? Math.round(((Number(listing.originalPrice) - listing.price) / Number(listing.originalPrice)) * 100)
     : 0;
 
+  // Mesma regra da página de detalhes: só existe selo de verificação para imobiliária
+  // (dono pessoa física verificado não é exibido como "verificado" — sem base para isso).
+  const isVerified = Boolean(
+    (listing.owner?.accountType === "AGENCY" && listing.owner?.verified) || listing.organization?.verified
+  );
+
   return (
     <>
       <div className={styles.card}>
         <div className={styles.imageWrap} onClick={handleImageClick} title="Clique para ampliar as fotos">
           {/* eslint-disable-next-line @next/next/no-img-element */}
-          <img src={images[0]?.url || "/placeholder.jpg"} alt={listing.name} className={styles.image} />
+          <img
+            src={images[0]?.url || "/placeholder.jpg"}
+            alt={listing.name}
+            className={styles.image}
+            loading="lazy"
+            decoding="async"
+          />
 
           {isAdmin && (
             <ModerateListingTrigger listingId={listing.id} listingName={listing.name} status={listing.status} />
@@ -75,6 +97,16 @@ export function ListingCard({ listing, isAdmin = false }: { listing: Listing; is
         </div>
 
         <Link href={`/imovel/${listing.id}`} className={styles.info}>
+          <div className={styles.tagRow}>
+            <span className={styles.typeTag}>{TYPE_LABELS[listing.type]}</span>
+            <span className={styles.categoryTag}>{CATEGORY_LABELS[listing.category]}</span>
+            {isVerified && (
+              <span className={styles.verifiedTag}>
+                <BadgeCheck size={12} />
+                Verificado
+              </span>
+            )}
+          </div>
           <h3 className={styles.name}>{listing.name}</h3>
           <p className={styles.location}>{listing.location}</p>
           <div className={styles.amenities}>

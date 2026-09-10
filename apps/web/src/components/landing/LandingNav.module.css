@@ -1,0 +1,98 @@
+.nav {
+  position: sticky;
+  top: 0;
+  z-index: 50;
+  background: rgba(251, 247, 241, 0.88);
+  backdrop-filter: blur(10px);
+  border-bottom: 1px solid var(--line);
+}
+
+.navInner {
+  max-width: 1120px;
+  margin: 0 auto;
+  padding: 18px 32px;
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+}
+
+.logo {
+  font-family: var(--font-landing-serif), Georgia, serif;
+  font-weight: 700;
+  font-size: 22px;
+  letter-spacing: -0.01em;
+  color: var(--ink);
+}
+
+.logo span {
+  color: var(--coral);
+}
+
+.navLinks {
+  display: flex;
+  align-items: center;
+  gap: 32px;
+  font-size: 15px;
+  color: var(--slate);
+}
+
+.navLink:hover {
+  color: var(--ink);
+}
+
+.navCta {
+  background: var(--ink);
+  color: var(--paper);
+  padding: 9px 18px;
+  border-radius: 99px;
+  font-size: 14px;
+  font-weight: 600;
+}
+
+.menuToggle {
+  display: none;
+  background: none;
+  border: none;
+  color: var(--ink);
+  padding: 4px;
+  cursor: pointer;
+  align-items: center;
+  justify-content: center;
+}
+
+/* ── mobile: esconde os links de âncora da barra e mostra o botão de menu ── */
+
+@media (max-width: 720px) {
+  .navLink {
+    display: none;
+  }
+
+  .menuToggle {
+    display: flex;
+  }
+}
+
+.mobilePanel {
+  display: none;
+}
+
+@media (max-width: 720px) {
+  .mobilePanel[data-open="true"] {
+    display: flex;
+    flex-direction: column;
+    padding: 4px 20px 14px;
+    border-top: 1px solid var(--line);
+  }
+
+  .mobilePanel a {
+    padding: 13px 0;
+    font-size: 15px;
+    font-weight: 550;
+    color: var(--ink);
+    border-bottom: 1px solid var(--line);
+  }
+
+  .mobilePanel a:last-child {
+    border-bottom: none;
+  }
+}

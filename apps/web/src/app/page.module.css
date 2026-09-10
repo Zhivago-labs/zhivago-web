@@ -1,215 +1,53 @@
-.main {
-  max-width: 1100px;
+/*
+ * Paleta e espaçamentos exclusivos da landing page — deliberadamente distintos dos tokens
+ * globais (--accent, --foreground, --background...) usados no restante do app. Ficam
+ * escopados a `.landingRoot` (não `:root`) para não vazar pra nenhuma outra rota; os
+ * componentes em `components/landing/*` herdam essas variáveis por cascata do DOM.
+ */
+.landingRoot {
+  --ink: #12151c;
+  --ink-soft: #1c212c;
+  --paper: #fbf7f1;
+  --paper-2: #f3ecdf;
+  --coral: #ff385c;
+  --coral-deep: #c41e3a;
+  --slate: #5b6472;
+  --slate-light: #8891a0;
+  --sand: #e7ddc9;
+  --line: rgba(18, 21, 28, 0.1);
+  --line-dark: rgba(251, 247, 241, 0.14);
+  --ok: #2f9e6a;
+  --warn: #d98a1f;
+  --bad: #e5484d;
+  --neutral: #7c8794;
+
+  background: var(--paper);
+  color: var(--ink);
+  font-family: var(--font-landing-sans), system-ui, -apple-system, sans-serif;
+  -webkit-font-smoothing: antialiased;
+  overflow-x: hidden;
+}
+
+.landingRoot :where(h1, h2, h3) {
+  font-family: var(--font-landing-serif), Georgia, serif;
+  font-weight: 600;
+  letter-spacing: -0.01em;
+  margin: 0;
+}
+
+.landingRoot :focus-visible {
+  outline: 2px solid var(--coral-deep);
+  outline-offset: 3px;
+}
+
+.wrap {
+  max-width: 1120px;
   margin: 0 auto;
-  padding: 64px 32px 96px;
-  display: flex;
-  flex-direction: column;
-  gap: 72px;
+  padding: 0 32px;
 }
 
-@media (max-width: 768px) {
-  .main {
-    padding: 40px 20px 64px;
-    gap: 56px;
+@media (max-width: 640px) {
+  .wrap {
+    padding: 0 20px;
   }
-}
-
-/* ── HERO ── */
-
-.hero {
-  display: flex;
-  flex-direction: column;
-  align-items: center;
-  text-align: center;
-  gap: 20px;
-}
-
-.heroBadge {
-  display: inline-flex;
-  align-items: center;
-  gap: 8px;
-  font-size: 13px;
-  font-weight: 800;
-  color: var(--accent);
-  background: var(--accent-light);
-  border: 1px solid var(--accent-light-border);
-  padding: 6px 16px;
-  border-radius: var(--radius-full);
-}
-
-.heroTitle {
-  font-size: 48px;
-  font-weight: 850;
-  letter-spacing: -0.04em;
-  color: var(--foreground);
-  line-height: 1.12;
-  max-width: 780px;
-  margin: 0;
-}
-
-@media (max-width: 768px) {
-  .heroTitle {
-    font-size: 32px;
-  }
-}
-
-.heroSubtitle {
-  font-size: 17px;
-  font-weight: 500;
-  color: var(--muted);
-  max-width: 620px;
-  line-height: 1.6;
-  margin: 0;
-}
-
-.heroActions {
-  display: flex;
-  align-items: center;
-  gap: 14px;
-  margin-top: 8px;
-  flex-wrap: wrap;
-  justify-content: center;
-}
-
-.primaryButton {
-  display: inline-flex;
-  align-items: center;
-  gap: 8px;
-  background: var(--accent);
-  color: var(--accent-contrast);
-  font-weight: 700;
-  font-size: 15px;
-  padding: 14px 24px;
-  border-radius: var(--radius-md);
-  box-shadow: var(--shadow-md);
-  transition: var(--transition);
-}
-
-.primaryButton:hover {
-  background: var(--accent-hover);
-}
-
-.secondaryButton {
-  display: inline-flex;
-  align-items: center;
-  gap: 8px;
-  background: var(--card-bg);
-  color: var(--foreground);
-  font-weight: 700;
-  font-size: 15px;
-  padding: 14px 24px;
-  border-radius: var(--radius-md);
-  border: 1px solid var(--border);
-  transition: var(--transition);
-}
-
-.secondaryButton:hover {
-  border-color: var(--border-hover);
-  background: var(--hover-bg);
-}
-
-/* ── FEATURES ── */
-
-.featuresGrid {
-  display: grid;
-  grid-template-columns: repeat(3, 1fr);
-  gap: 20px;
-}
-
-@media (max-width: 768px) {
-  .featuresGrid {
-    grid-template-columns: 1fr;
-  }
-}
-
-.featureCard {
-  background: var(--card-bg);
-  border: 1px solid var(--border);
-  border-radius: var(--radius-lg);
-  padding: 28px;
-  box-shadow: var(--shadow-sm);
-}
-
-.featureIconWrap {
-  width: 44px;
-  height: 44px;
-  display: flex;
-  align-items: center;
-  justify-content: center;
-  border-radius: var(--radius-md);
-  background: var(--accent-light);
-  color: var(--accent);
-  margin-bottom: 16px;
-}
-
-.featureTitle {
-  font-size: 17px;
-  font-weight: 750;
-  color: var(--foreground);
-  margin: 0 0 8px;
-}
-
-.featureText {
-  font-size: 14px;
-  font-weight: 500;
-  color: var(--muted);
-  line-height: 1.55;
-  margin: 0;
-}
-
-/* ── CTA BANNER ── */
-
-.ctaBanner {
-  display: flex;
-  align-items: center;
-  justify-content: space-between;
-  gap: 24px;
-  flex-wrap: wrap;
-  background: var(--foreground);
-  color: var(--background);
-  border-radius: var(--radius-xl);
-  padding: 40px 44px;
-  box-shadow: var(--shadow-premium);
-}
-
-.ctaTitle {
-  font-size: 24px;
-  font-weight: 800;
-  margin: 0 0 6px;
-}
-
-.ctaText {
-  font-size: 15px;
-  font-weight: 500;
-  opacity: 0.75;
-  margin: 0;
-}
-
-.ctaActions {
-  display: flex;
-  align-items: center;
-  gap: 12px;
-  flex-shrink: 0;
-}
-
-.ctaSecondary {
-  font-weight: 700;
-  font-size: 14px;
-  padding: 12px 20px;
-  border-radius: var(--radius-md);
-  border: 1px solid rgba(255, 255, 255, 0.2);
-}
-
-.ctaPrimary {
-  background: var(--accent);
-  color: var(--accent-contrast);
-  font-weight: 700;
-  font-size: 14px;
-  padding: 12px 20px;
-  border-radius: var(--radius-md);
-  transition: var(--transition);
-}
-
-.ctaPrimary:hover {
-  background: var(--accent-hover);
 }

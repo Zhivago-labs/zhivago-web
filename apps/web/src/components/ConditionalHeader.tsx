@@ -2,7 +2,8 @@
 
 import { usePathname } from "next/navigation";
 
-const HIDDEN_ROUTES = ["/login", "/cadastro", "/esqueci-senha", "/redefinir-senha"];
+// "/" tem seu próprio nav (LandingNav) — mostrar o SiteHeader do app por cima duplicaria a navegação.
+const HIDDEN_ROUTES = ["/", "/login", "/cadastro", "/esqueci-senha", "/redefinir-senha"];
 
 export function ConditionalHeader({ children }: { children: React.ReactNode }) {
   const pathname = usePathname();
