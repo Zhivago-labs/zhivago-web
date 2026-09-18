@@ -2,11 +2,12 @@ import Link from "next/link";
 import { notFound, redirect } from "next/navigation";
 import type { Metadata } from "next";
 import type { Listing } from "@zhivago/shared";
-import { ArrowLeft, MessageCircle } from "lucide-react";
+import { ArrowLeft, CalendarRange, MessageCircle } from "lucide-react";
 import { getListing, getListings, formatPrice } from "@/lib/api";
 import { getSessionUser } from "@/lib/session";
 import { StartChatButton } from "@/components/chat/StartChatButton";
 import { BookingRequestForm } from "@/components/listing/BookingRequestForm";
+import { MobileRentTrigger } from "@/components/listing/MobileRentTrigger";
 import { ListingGallery } from "@/components/listing/ListingGallery";
 import { ListingCard } from "@/components/ListingCard";
 import { AgencyBadge } from "@/components/AgencyBadge";
@@ -315,6 +316,16 @@ export default async function ListingPage({ params }: Params) {
             ) : (
               <StartChatButton listingId={listing.id} />
             )
+          )}
+          {listing.category === "aluguel" && (
+            !user ? (
+              <Link href={`/login?next=/imovel/${id}`} className={styles.chatButtonDisabled}>
+                <CalendarRange size={18} />
+                Alugar
+              </Link>
+            ) : isOwner ? null : listing.status === "APPROVED" ? (
+              <MobileRentTrigger listingId={listing.id} />
+            ) : null
           )}
         </div>
       </div>

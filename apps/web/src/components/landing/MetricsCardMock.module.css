@@ -77,6 +77,13 @@
   margin-top: 2px;
 }
 
+.disclaimer {
+  font-size: 10.5px;
+  color: #6b7482;
+  margin: 14px 0 0;
+  text-align: right;
+}
+
 @media (prefers-reduced-motion: reduce) {
   .bar {
     animation: none !important;

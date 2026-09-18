@@ -42,6 +42,7 @@ export function MetricsCardMock() {
           </div>
         ))}
       </div>
+      <p className={styles.disclaimer}>Dados ilustrativos</p>
     </div>
   );
 }

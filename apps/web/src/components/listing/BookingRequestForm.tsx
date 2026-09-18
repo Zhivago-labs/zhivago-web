@@ -58,7 +58,7 @@ export function BookingRequestForm({ listingId }: { listingId: string }) {
       const data = await res.json().catch(() => null);
 
       if (!res.ok) {
-        setError(data?.message ?? "Não foi possível solicitar a reserva.");
+        setError(data?.error ?? data?.message ?? "Não foi possível solicitar a reserva.");
         return;
       }
 

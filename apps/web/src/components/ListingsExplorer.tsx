@@ -20,6 +20,7 @@ import {
 import type { Listing, ListingType } from "@zhivago/shared";
 import { AVAILABLE_AMENITIES } from "./listings/AmenitiesSelector";
 import { ListingCard } from "./ListingCard";
+import { ErrorState } from "./ErrorState";
 import {
   addRecentSearch,
   getRecentSearches,
@@ -68,15 +69,31 @@ function FilterChip({
   );
 }
 
-export function ListingsExplorer({ listings, isAdmin = false }: { listings: Listing[]; isAdmin?: boolean }) {
-  const [query, setQuery] = useState("");
+export function ListingsExplorer({
+  listings,
+  isAdmin = false,
+  loadError = false,
+  initialQuery = "",
+  initialType = null,
+  initialCategory = "todos",
+}: {
+  listings: Listing[];
+  isAdmin?: boolean;
+  loadError?: boolean;
+  // Preenchidos a partir da busca feita no hero da home (?q=&tipo=&categoria=), pra a busca
+  // ali não ser só decorativa — reaproveita o mesmo motor de filtro desta página.
+  initialQuery?: string;
+  initialType?: ListingType | null;
+  initialCategory?: Category;
+}) {
+  const [query, setQuery] = useState(initialQuery);
   const [searchOpen, setSearchOpen] = useState(false);
   const [recentSearches, setRecentSearches] = useState<string[]>([]);
   const [recentlyViewedIds, setRecentlyViewedIds] = useState<string[]>([]);
   const blurTimeout = useRef<ReturnType<typeof setTimeout> | null>(null);
 
-  const [activeType, setActiveType] = useState<ListingType | null>(null);
-  const [activeCategory, setActiveCategory] = useState<Category>("todos");
+  const [activeType, setActiveType] = useState<ListingType | null>(initialType);
+  const [activeCategory, setActiveCategory] = useState<Category>(initialCategory);
   const [minBedrooms, setMinBedrooms] = useState<number | null>(null);
   const [minBathrooms, setMinBathrooms] = useState<number | null>(null);
   const [minParking, setMinParking] = useState<number | null>(null);
@@ -572,28 +589,32 @@ export function ListingsExplorer({ listings, isAdmin = false }: { listings: List
       )}
 
       {/* ── RESULTADOS ── */}
-      <div className={styles.resultsHeader}>
-        <span className={styles.resultsCount}>
-          {filtered.length} {filtered.length === 1 ? "imóvel encontrado" : "imóveis encontrados"}
-        </span>
+      {!loadError && (
+        <div className={styles.resultsHeader}>
+          <span className={styles.resultsCount}>
+            {filtered.length} {filtered.length === 1 ? "imóvel encontrado" : "imóveis encontrados"}
+          </span>
 
-        <label className={styles.sortLabel}>
-          <span className={styles.sortLabelText}>Ordenar por</span>
-          <select
-            className={styles.sortSelect}
-            value={sortOption}
-            onChange={(e) => setSortOption(e.target.value as SortOption)}
-          >
-            {(Object.keys(SORT_LABELS) as SortOption[]).map((option) => (
-              <option key={option} value={option}>
-                {SORT_LABELS[option]}
-              </option>
-            ))}
-          </select>
-        </label>
-      </div>
+          <label className={styles.sortLabel}>
+            <span className={styles.sortLabelText}>Ordenar por</span>
+            <select
+              className={styles.sortSelect}
+              value={sortOption}
+              onChange={(e) => setSortOption(e.target.value as SortOption)}
+            >
+              {(Object.keys(SORT_LABELS) as SortOption[]).map((option) => (
+                <option key={option} value={option}>
+                  {SORT_LABELS[option]}
+                </option>
+              ))}
+            </select>
+          </label>
+        </div>
+      )}
 
-      {filtered.length === 0 ? (
+      {loadError ? (
+        <ErrorState message="Tente novamente em alguns instantes. Seus filtros continuam aplicados." />
+      ) : filtered.length === 0 ? (
         <div className={styles.emptyStateContainer}>
           <Filter size={32} className={styles.emptyIcon} />
           <p className={styles.emptyTitle}>Nenhum imóvel encontrado</p>

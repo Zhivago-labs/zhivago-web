@@ -2,13 +2,7 @@
 
 import { useEffect, useState } from "react";
 import Link from "next/link";
-import { SmoothAnchorLink } from "./SmoothAnchorLink";
 import styles from "./LandingNav.module.css";
-
-const LINKS: { href: `#${string}`; label: string }[] = [
-  { href: "#marketplace", label: "Para quem procura imóvel" },
-  { href: "#crm", label: "Para imobiliárias" },
-];
 
 export function LandingNav() {
   const [menuOpen, setMenuOpen] = useState(false);
@@ -33,17 +27,24 @@ export function LandingNav() {
   return (
     <nav className={styles.nav}>
       <div className={styles.navInner}>
-        <div className={styles.logo}>
+        <Link href="/" className={styles.logo}>
           zhiv<span>a</span>go
-        </div>
+        </Link>
         <div className={styles.navLinks}>
-          {LINKS.map((link) => (
-            <SmoothAnchorLink key={link.href} href={link.href} className={styles.navLink}>
-              {link.label}
-            </SmoothAnchorLink>
-          ))}
-          <Link href="/login" className={styles.navCta}>
+          <Link href="/imoveis" className={styles.navLink}>
+            Explorar
+          </Link>
+          <Link href="/anuncios/novo" className={styles.navLink}>
+            Anunciar imóvel
+          </Link>
+          <Link href="#crm" className={styles.navLink}>
+            Para imobiliárias
+          </Link>
+          <Link href="/login" className={styles.navLink}>
             Entrar
+          </Link>
+          <Link href="/cadastro" className={styles.navCta}>
+            Cadastre-se
           </Link>
           <button
             type="button"
@@ -66,11 +67,21 @@ export function LandingNav() {
       </div>
 
       <div className={styles.mobilePanel} data-open={menuOpen}>
-        {LINKS.map((link) => (
-          <SmoothAnchorLink key={link.href} href={link.href} onClick={() => setMenuOpen(false)}>
-            {link.label}
-          </SmoothAnchorLink>
-        ))}
+        <Link href="/imoveis" onClick={() => setMenuOpen(false)}>
+          Explorar
+        </Link>
+        <Link href="/anuncios/novo" onClick={() => setMenuOpen(false)}>
+          Anunciar imóvel
+        </Link>
+        <Link href="#crm" onClick={() => setMenuOpen(false)}>
+          Para imobiliárias
+        </Link>
+        <Link href="/login" onClick={() => setMenuOpen(false)}>
+          Entrar
+        </Link>
+        <Link href="/cadastro" onClick={() => setMenuOpen(false)}>
+          Cadastre-se
+        </Link>
       </div>
     </nav>
   );

@@ -36,17 +36,33 @@
   color: var(--slate);
 }
 
+.navLink {
+  background: none;
+  border: none;
+  padding: 0;
+  font: inherit;
+  color: inherit;
+  cursor: pointer;
+}
+
 .navLink:hover {
   color: var(--ink);
 }
 
 .navCta {
-  background: var(--ink);
-  color: var(--paper);
+  background: var(--coral);
+  color: #fff;
   padding: 9px 18px;
   border-radius: 99px;
   font-size: 14px;
   font-weight: 600;
+  box-shadow: 0 4px 14px -4px rgba(255, 56, 92, 0.5);
+  transition: transform 0.15s ease, box-shadow 0.15s ease;
+}
+
+.navCta:hover {
+  transform: translateY(-1px);
+  box-shadow: 0 6px 16px -4px rgba(255, 56, 92, 0.6);
 }
 
 .menuToggle {
@@ -84,15 +100,23 @@
     border-top: 1px solid var(--line);
   }
 
-  .mobilePanel a {
+  .mobilePanel a,
+  .mobilePanel button {
+    display: block;
+    width: 100%;
+    text-align: left;
+    background: none;
+    border: none;
     padding: 13px 0;
     font-size: 15px;
     font-weight: 550;
     color: var(--ink);
+    cursor: pointer;
     border-bottom: 1px solid var(--line);
   }
 
-  .mobilePanel a:last-child {
+  .mobilePanel a:last-child,
+  .mobilePanel button:last-child {
     border-bottom: none;
   }
 }

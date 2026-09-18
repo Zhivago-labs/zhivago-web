@@ -1,3 +1,4 @@
+import Link from "next/link";
 import shared from "./shared.module.css";
 import styles from "./CrmSection.module.css";
 import { LeadsKanbanMock } from "./LeadsKanbanMock";
@@ -38,11 +39,11 @@ const CRM_FEATURES = [
 ];
 
 const ROLES = [
-  { name: "Proprietário", desc: "Controle total da organização", tag: "OWNER" },
-  { name: "Administrador", desc: "Gerencia equipe, anúncios e configurações", tag: "ADMIN" },
-  { name: "Gerente", desc: "Acompanha leads e métricas da equipe", tag: "MANAGER" },
-  { name: "Corretor", desc: "Atende leads atribuídos e agenda visitas", tag: "BROKER" },
-  { name: "Assistente", desc: "Apoio operacional, acesso restrito", tag: "ASSISTANT" },
+  { name: "Proprietário", desc: "Controle total da organização" },
+  { name: "Administrador", desc: "Gerencia equipe, anúncios e configurações" },
+  { name: "Gerente", desc: "Acompanha leads e métricas da equipe" },
+  { name: "Corretor", desc: "Atende leads atribuídos e agenda visitas" },
+  { name: "Assistente", desc: "Apoio operacional, acesso restrito" },
 ];
 
 export function CrmSection() {
@@ -82,18 +83,26 @@ export function CrmSection() {
               </p>
               <div className={styles.roleList}>
                 {ROLES.map((role) => (
-                  <div key={role.tag} className={styles.roleRow}>
+                  <div key={role.name} className={styles.roleRow}>
                     <div>
                       <div className={styles.roleName}>{role.name}</div>
                       <div className={styles.roleDesc}>{role.desc}</div>
                     </div>
-                    <div className={styles.roleTag}>{role.tag}</div>
                   </div>
                 ))}
               </div>
             </div>
 
             <MetricsCardMock />
+          </div>
+
+          <div className={styles.crmCta}>
+            <Link href="/cadastro" className={shared.btnLight}>
+              Conhecer o Zhivago para imobiliárias
+              <svg width="15" height="15" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2.2" strokeLinecap="round" strokeLinejoin="round">
+                <path d="M5 12h14M13 6l6 6-6 6" />
+              </svg>
+            </Link>
           </div>
         </div>
       </div>

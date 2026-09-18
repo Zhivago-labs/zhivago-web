@@ -76,12 +76,23 @@ export function DashboardClientView({
 
   const initialTab = (searchParams.get("tab") as "overview" | "listings" | "bookings") || "overview";
   const [activeTab, setActiveTab] = useState<"overview" | "listings" | "bookings">(initialTab);
+  const [searchValue, setSearchValue] = useState(search);
 
   const handleTabChange = (tab: "overview" | "listings" | "bookings") => {
     setActiveTab(tab);
     const params = new URLSearchParams(searchParams.toString());
     params.set("tab", tab);
     router.replace(`${pathname}?${params.toString()}`, { scroll: false });
+  };
+
+  const handleSearchSubmit = (e: React.FormEvent<HTMLFormElement>) => {
+    e.preventDefault();
+    const params = new URLSearchParams(searchParams.toString());
+    params.set("tab", "bookings");
+    if (searchValue) params.set("q", searchValue);
+    else params.delete("q");
+    params.delete("page");
+    router.push(`${pathname}?${params.toString()}`, { scroll: false });
   };
 
   const months = Object.keys(stats.bookingsByMonth).sort();
@@ -404,14 +415,13 @@ export function DashboardClientView({
               <ExportBookingsButton bookings={receivedBookings.bookings} />
             </div>
 
-            <form method="GET" className={styles.searchForm}>
-              <input type="hidden" name="tab" value="bookings" />
+            <form onSubmit={handleSearchSubmit} className={styles.searchForm}>
               <div className={styles.searchWrapper}>
                 <Search size={16} className={styles.searchIcon} />
                 <input
                   type="search"
-                  name="q"
-                  defaultValue={search}
+                  value={searchValue}
+                  onChange={(e) => setSearchValue(e.target.value)}
                   placeholder="Buscar por nome do hóspede ou título do imóvel..."
                   className={styles.searchInput}
                 />

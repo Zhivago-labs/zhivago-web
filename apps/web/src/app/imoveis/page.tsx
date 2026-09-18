@@ -1,15 +1,18 @@
 import { redirect } from "next/navigation";
 import type { Metadata } from "next";
-import type { Listing } from "@zhivago/shared";
+import type { Listing, ListingType } from "@zhivago/shared";
 import { getListings } from "@/lib/api";
 import { getSessionUser } from "@/lib/session";
 import { ListingsExplorer } from "@/components/ListingsExplorer";
-import { ErrorState } from "@/components/ErrorState";
 import styles from "./page.module.css";
 
 export const metadata: Metadata = { title: "Explorar imóveis" };
 
-export default async function ImoveisPage() {
+const LISTING_TYPES: ListingType[] = ["casa", "apartamento"];
+
+type Props = { searchParams: Promise<{ q?: string; tipo?: string; categoria?: string }> };
+
+export default async function ImoveisPage({ searchParams }: Props) {
   let listings: Listing[];
   let loadError = false;
   const user = await getSessionUser();
@@ -18,6 +21,12 @@ export default async function ImoveisPage() {
   if (user?.accountType === "AGENCY" && user.role !== "ADMIN") {
     redirect("/dashboard");
   }
+
+  // ?q=&tipo=&categoria= vêm da busca do hero da home — mesma sintaxe validada aqui e usada
+  // pra inicializar o filtro do ListingsExplorer, em vez de servir só de decoração.
+  const { q, tipo, categoria } = await searchParams;
+  const initialType = LISTING_TYPES.includes(tipo as ListingType) ? (tipo as ListingType) : null;
+  const initialCategory = categoria === "aluguel" || categoria === "venda" ? categoria : "todos";
 
   try {
     listings = await getListings();
@@ -33,11 +42,14 @@ export default async function ImoveisPage() {
         <p className={styles.subtitle}>Casas e apartamentos para alugar ou comprar.</p>
       </div>
 
-      {loadError ? (
-        <ErrorState message="Tente novamente em alguns instantes." />
-      ) : (
-        <ListingsExplorer listings={listings} isAdmin={user?.role === "ADMIN"} />
-      )}
+      <ListingsExplorer
+        listings={listings}
+        isAdmin={user?.role === "ADMIN"}
+        loadError={loadError}
+        initialQuery={q ?? ""}
+        initialType={initialType}
+        initialCategory={initialCategory}
+      />
     </main>
   );
 }
