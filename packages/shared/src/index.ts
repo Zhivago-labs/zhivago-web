@@ -43,6 +43,7 @@ export interface OrganizationMember {
   id: string;
   role: OrganizationMemberRole;
   status: OrganizationMemberStatus;
+  receiveLeads: boolean;
   userId: string;
   organizationId: string;
   createdAt: string;

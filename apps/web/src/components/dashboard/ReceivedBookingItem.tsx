@@ -1,8 +1,12 @@
+"use client";
+
+import { useState } from "react";
 import type { ReceivedBooking } from "@/lib/listings-api";
 import { cancelBookingAction, approveBookingAction, rejectBookingAction } from "@/lib/actions/listings";
 import { ActionForm } from "@/components/ActionForm";
 import { ConfirmSubmitButton } from "./ConfirmSubmitButton";
-import { Calendar, Clock, CheckCircle2, XCircle, User, Building2 } from "lucide-react";
+import { BookingDiscountModal } from "./BookingDiscountModal";
+import { Calendar, Clock, CheckCircle2, XCircle, User, Building2, Tag } from "lucide-react";
 import styles from "./ReceivedBookingItem.module.css";
 
 function formatDate(value: string): string {
@@ -31,10 +35,13 @@ function statusInfo(status: string, isPast: boolean): { label: string; bg: strin
 }
 
 export function ReceivedBookingItem({ booking }: { booking: ReceivedBooking }) {
+  const [discountModalOpen, setDiscountModalOpen] = useState(false);
   const isPast = new Date(booking.endDate) < new Date();
   const info = statusInfo(booking.status, isPast);
   const canCancel = !isPast && (booking.status === "PENDING" || booking.status === "CONFIRMED");
   const canRespond = !isPast && booking.status === "PENDING";
+  const canDiscount = booking.status === "PENDING" || booking.status === "CONFIRMED";
+  const hasActiveDiscount = booking.discountedPrice != null && booking.discountedPrice < booking.price;
   const durationText = getDurationLabel(booking.startDate, booking.endDate);
 
   return (
@@ -74,6 +81,44 @@ export function ReceivedBookingItem({ booking }: { booking: ReceivedBooking }) {
           <span>{durationText}</span>
         </div>
       </div>
+
+      <div className={styles.detailsRow}>
+        <div className={styles.dateChip}>
+          {hasActiveDiscount ? (
+            <>
+              <span style={{ textDecoration: "line-through", opacity: 0.6 }}>
+                R$ {booking.price.toLocaleString("pt-BR")}
+              </span>
+              <span> → R$ {booking.discountedPrice!.toLocaleString("pt-BR")}</span>
+            </>
+          ) : (
+            <span>R$ {booking.price.toLocaleString("pt-BR")}</span>
+          )}
+        </div>
+        {canDiscount && (
+          <button
+            type="button"
+            className={styles.durationChip}
+            style={{ cursor: "pointer", fontFamily: "inherit" }}
+            onClick={() => setDiscountModalOpen(true)}
+          >
+            <Tag size={14} className={styles.chipIcon} />
+            <span>{hasActiveDiscount ? "Gerenciar desconto" : "Aplicar desconto"}</span>
+          </button>
+        )}
+      </div>
+
+      {discountModalOpen && (
+        <BookingDiscountModal
+          booking={{
+            id: booking.id,
+            price: booking.price,
+            discountedPrice: booking.discountedPrice,
+            guestName: booking.user.name,
+          }}
+          onClose={() => setDiscountModalOpen(false)}
+        />
+      )}
 
       {canRespond && (
         <div className={styles.responseRow}>

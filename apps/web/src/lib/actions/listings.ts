@@ -324,6 +324,36 @@ export async function applyDiscountAction(
   return undefined;
 }
 
+export async function setBookingDiscountAction(
+  _prevState: ListingFormState,
+  formData: FormData
+): Promise<ListingFormState> {
+  const token = await getToken();
+  const id = String(formData.get("id") ?? "");
+  const intent = String(formData.get("intent") ?? "apply");
+  const customPriceStr = formData.get("customPrice");
+
+  if (!token || !id) return { error: "Reserva não encontrada." };
+
+  const discountedPrice = intent === "remove" ? null : Number(customPriceStr);
+  if (intent !== "remove" && (!discountedPrice || discountedPrice <= 0)) {
+    return { error: "Informe um valor promocional válido." };
+  }
+
+  const res = await fetch(`${getApiUrl()}/bookings/${id}/discount`, {
+    method: "PATCH",
+    headers: { "Content-Type": "application/json", Authorization: `Bearer ${token}` },
+    body: JSON.stringify({ discountedPrice }),
+  });
+  if (!res.ok) {
+    const data = await res.json().catch(() => null);
+    return { error: extractErrorMessage(data, "Não foi possível atualizar o desconto da reserva.") };
+  }
+
+  revalidatePath("/dashboard");
+  return undefined;
+}
+
 export async function approveOrgListingAction(
   _prevState: ListingFormState,
   formData: FormData

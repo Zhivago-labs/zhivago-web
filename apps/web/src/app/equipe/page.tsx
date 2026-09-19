@@ -53,6 +53,7 @@ export default async function EquipePage() {
               isAgency={isAgency}
               membership={null}
               canManageTeam={false}
+              currentUserId={user.id}
               organizationListings={[]}
               assignedListings={[]}
               pendingInvites={[]}
@@ -89,6 +90,7 @@ export default async function EquipePage() {
         isAgency={isAgency}
         membership={membership}
         canManageTeam={canManageTeam}
+        currentUserId={user.id}
         organizationListings={organizationListings}
         assignedListings={assignedListings}
         pendingInvites={pendingInvites}

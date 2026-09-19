@@ -55,6 +55,8 @@ export interface ReceivedBooking {
   startDate: string;
   endDate: string;
   status: string;
+  price: number;
+  discountedPrice: number | null;
   listing: { id: string; name: string; image: string; price: number };
   user: { name: string; avatar: string | null; email: string; phone: string | null };
 }

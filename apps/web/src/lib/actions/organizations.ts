@@ -173,6 +173,31 @@ export async function removeMemberAction(
   return undefined;
 }
 
+export async function updateReceiveLeadsAction(
+  _prevState: OrgFormState,
+  formData: FormData
+): Promise<OrgFormState> {
+  const token = await getToken();
+  if (!token) return { error: "Sessão expirada. Faça login novamente." };
+
+  const userId = String(formData.get("userId") ?? "").trim();
+  const receiveLeads = formData.get("receiveLeads") === "true";
+  if (!userId) return { error: "Membro inválido." };
+
+  const res = await fetch(`${getApiUrl()}/organizations/members/${userId}/receive-leads`, {
+    method: "PATCH",
+    headers: { "Content-Type": "application/json", Authorization: `Bearer ${token}` },
+    body: JSON.stringify({ receiveLeads }),
+  });
+  if (!res.ok) {
+    const data = await res.json().catch(() => null);
+    return { error: extractErrorMessage(data, "Não foi possível atualizar a preferência de leads.") };
+  }
+
+  revalidatePath("/equipe");
+  return undefined;
+}
+
 export async function reassignListingAgentAction(
   _prevState: OrgFormState,
   formData: FormData

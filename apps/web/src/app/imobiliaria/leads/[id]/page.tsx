@@ -52,7 +52,9 @@ export default async function LeadDetailPage({ params }: Params) {
   const membership = await getMyOrganization(token);
   const canManage = !!membership && MANAGE_ROLES.includes(membership.role);
   const activeBrokers = membership
-    ? membership.organization.members.filter((member) => member.role === "BROKER" && member.status === "ACTIVE")
+    ? membership.organization.members.filter(
+        (member) => (member.role === "BROKER" || member.role === "MANAGER") && member.status === "ACTIVE"
+      )
     : [];
   const currentAssignment = lead.assignmentHistory.find((a) => a.unassignedAt === null) ?? null;
   // ASSISTANT vê tudo (somente leitura); BROKER só mexe no que é seu — mesma regra do backend

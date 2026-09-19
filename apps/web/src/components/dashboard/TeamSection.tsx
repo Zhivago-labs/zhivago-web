@@ -7,6 +7,7 @@ import { ReassignAgentSelect } from "./ReassignAgentSelect";
 import { RemoveMemberButton } from "./RemoveMemberButton";
 import { OwnerListingCard } from "./OwnerListingCard";
 import { LeadDistributionModeToggle } from "./LeadDistributionModeToggle";
+import { ReceiveLeadsToggle } from "./ReceiveLeadsToggle";
 import type { MyOrganization, OrganizationListing } from "@/lib/organizations-api";
 import type { OwnedListing } from "@/lib/listings-api";
 import type { OrganizationInvite } from "@zhivago/shared";
@@ -20,10 +21,13 @@ const ROLE_LABELS: Record<string, string> = {
   ASSISTANT: "Assistente",
 };
 
+const RECEIVES_LEADS_ROLES = ["BROKER", "MANAGER"];
+
 export function TeamSection({
   isAgency,
   membership,
   canManageTeam,
+  currentUserId,
   organizationListings,
   assignedListings,
   pendingInvites,
@@ -31,6 +35,7 @@ export function TeamSection({
   isAgency: boolean;
   membership: MyOrganization | null;
   canManageTeam: boolean;
+  currentUserId: string;
   organizationListings: OrganizationListing[];
   assignedListings: OwnedListing[];
   pendingInvites: OrganizationInvite[];
@@ -126,6 +131,10 @@ export function TeamSection({
               >
                 {ROLE_LABELS[member.role] ?? member.role}
               </span>
+              {RECEIVES_LEADS_ROLES.includes(member.role) &&
+                (canManageTeam || member.userId === currentUserId) && (
+                  <ReceiveLeadsToggle userId={member.userId} receiveLeads={member.receiveLeads} />
+                )}
               {canManageTeam && member.role !== "OWNER" && (
                 <RemoveMemberButton userId={member.userId} name={member.user?.name ?? "este membro"} />
               )}
