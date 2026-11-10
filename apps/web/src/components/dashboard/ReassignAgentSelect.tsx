@@ -20,9 +20,10 @@ export function ReassignAgentSelect({
   return (
     <form ref={formRef} action={formAction} className={styles.agentSelectRow}>
       <input type="hidden" name="id" value={listingId} />
-      Corretor:
+      <span className={styles.agentSelectLabel}>Responsável</span>
       <select
         name="agentId"
+        aria-label="Corretor responsável pelo imóvel"
         defaultValue={currentAgentId ?? ""}
         className={styles.agentSelect}
         onChange={() => formRef.current?.requestSubmit()}

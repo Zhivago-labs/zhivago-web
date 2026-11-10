@@ -1,470 +1,164 @@
-.container {
-  display: flex;
-  flex-direction: column;
-  gap: 24px;
-}
+/* Tela Equipe (área da imobiliária) — mesmo visual de Workspace.module.css: cartões brancos,
+   ícones em quadrado colorido, selos com cor e botões primário (rosa) / secundário (borda). */
 
-.companyBanner {
-  background: var(--card-bg);
-  border: 1px solid var(--border);
-  border-radius: var(--radius-lg);
-  padding: 28px 32px;
-  box-shadow: var(--shadow-sm);
-}
+.container { display: flex; flex-direction: column; gap: 20px; }
 
-.companyBannerHeader {
-  display: flex;
-  align-items: center;
-  justify-content: space-between;
-  gap: 20px;
-  flex-wrap: wrap;
-}
+/* Tons locais (a tela também aparece fora do shell da imobiliária) */
+.section [data-tone], .sectionIcon { --tone: #475569; --tone-bg: #f1f5f9; }
+.section [data-tone="accent"] { --tone: var(--accent-hover); --tone-bg: var(--accent-light); }
+.section [data-tone="blue"] { --tone: #1d4ed8; --tone-bg: #eff6ff; }
+.section [data-tone="amber"] { --tone: #b45309; --tone-bg: #fffbeb; }
+.section [data-tone="green"] { --tone: #15803d; --tone-bg: #f0fdf4; }
+.section [data-tone="violet"] { --tone: #6d28d9; --tone-bg: #f5f3ff; }
 
-.companyTitleGroup {
-  display: flex;
-  align-items: center;
-  gap: 16px;
-}
+/* ─── Painel ─── */
+.section { background: var(--card-bg); border: 1px solid var(--border); border-radius: 14px; padding: 22px; box-shadow: var(--shadow-xs); min-width: 0; }
+.sectionHeader { display: flex; align-items: flex-start; gap: 12px; margin-bottom: 16px; }
+.sectionIcon { width: 38px; height: 38px; flex-shrink: 0; display: grid; place-items: center; border-radius: 10px; background: var(--tone-bg); color: var(--tone); }
+.sectionText { min-width: 0; flex: 1; }
+.sectionTitle { display: flex; align-items: center; gap: 8px; font-size: 16px; font-weight: 700; letter-spacing: -.2px; color: var(--foreground); margin: 0 0 3px; }
+.sectionSubtitle { font-size: 13px; color: var(--muted); line-height: 1.55; margin: 0; max-width: 680px; }
+.count { display: inline-block; min-width: 22px; text-align: center; padding: 1px 8px; border-radius: 99px; font-size: 11.5px; font-weight: 700; background: var(--hover-bg); color: var(--muted); }
+.count[data-tone] { background: var(--tone-bg); color: var(--tone); }
+.headerLink { display: inline-flex; align-items: center; gap: 4px; flex-shrink: 0; font-size: 13px; font-weight: 600; color: var(--accent-hover); padding-top: 8px; transition: gap .15s; }
+.headerLink:hover { gap: 7px; color: var(--accent); }
+.muted { font-size: 13px; color: var(--muted); }
+.muted strong { color: var(--foreground); }
 
-.companyIconWrap {
-  width: 48px;
-  height: 48px;
-  border-radius: var(--radius-md);
-  background: rgba(59, 130, 246, 0.08);
-  color: #2563eb;
-  display: flex;
-  align-items: center;
-  justify-content: center;
-  flex-shrink: 0;
-}
+/* ─── Membros ─── */
+.memberList { list-style: none; display: flex; flex-direction: column; border: 1px solid var(--border); border-radius: 12px; overflow: hidden; }
+.memberRow { display: flex; align-items: center; gap: 14px; padding: 12px 14px; border-top: 1px solid var(--border); transition: background .15s; }
+.memberRow:first-child { border-top: 0; }
+.memberRow:hover { background: #fafbfc; }
+.memberAvatar { width: 40px; height: 40px; flex-shrink: 0; display: grid; place-items: center; border-radius: 50%; object-fit: cover; font-size: 13px; font-weight: 700; background: #eff6ff; color: #1d4ed8; border: 1px solid #bfdbfe; }
+.memberAvatar[data-role="OWNER"] { background: var(--accent-light); color: var(--accent-hover); border-color: var(--accent-light-border); }
+.memberAvatar[data-role="ADMIN"], .memberAvatar[data-role="MANAGER"] { background: #f5f3ff; color: #6d28d9; border-color: #ddd6fe; }
+.memberInfo { display: flex; flex-direction: column; min-width: 0; flex: 1; }
+.memberName { display: flex; align-items: center; gap: 6px; font-size: 14px; font-weight: 600; color: var(--foreground); overflow: hidden; text-overflow: ellipsis; white-space: nowrap; }
+.memberEmail { font-size: 12.5px; color: var(--muted); overflow: hidden; text-overflow: ellipsis; white-space: nowrap; }
+.youTag { font-size: 10.5px; font-weight: 700; padding: 1px 6px; border-radius: 99px; background: var(--hover-bg); color: var(--muted); }
+.roleBadge { flex-shrink: 0; display: inline-flex; align-items: center; gap: 6px; padding: 3px 10px; border-radius: 99px; font-size: 11.5px; font-weight: 600; white-space: nowrap; background: #eff6ff; color: #1d4ed8; border: 1px solid #bfdbfe; }
+.roleBadge::before { content: ""; width: 6px; height: 6px; border-radius: 50%; background: currentColor; }
+.roleBadge[data-role="OWNER"] { background: var(--accent-light); color: var(--accent-hover); border-color: var(--accent-light-border); }
+.roleBadge[data-role="ADMIN"], .roleBadge[data-role="MANAGER"] { background: #f5f3ff; color: #6d28d9; border-color: #ddd6fe; }
+.roleBadge[data-role="ASSISTANT"] { background: #f1f5f9; color: #475569; border-color: #e2e8f0; }
+.memberControls { display: flex; align-items: center; justify-content: flex-end; gap: 10px; flex-shrink: 0; min-width: 210px; }
+.leadsToggle label { font-size: 12.5px; font-weight: 600; color: var(--muted); cursor: pointer; padding: 6px 10px; border: 1px solid var(--border); border-radius: 99px; background: var(--card-bg); }
+.leadsToggle label:has(input:checked) { color: #15803d; border-color: #bbf7d0; background: #f0fdf4; }
+.leadsToggle input { accent-color: #16a34a; }
 
-.companyName {
-  font-size: 24px;
-  font-weight: 700;
-  color: var(--foreground);
-  margin: 0;
-  letter-spacing: -0.03em;
-}
+.removeMemberButton { display: inline-flex; align-items: center; gap: 6px; min-height: 32px; padding: 0 12px; border: 1px solid var(--border); border-radius: 8px; background: var(--card-bg); color: #b42318; font: inherit; font-size: 12.5px; font-weight: 600; cursor: pointer; transition: background .15s, border-color .15s; }
+.removeMemberButton:hover { background: #fef2f2; border-color: #fecaca; }
+.removeMemberButton:disabled { opacity: .6; cursor: wait; }
+.removeMemberError { font-size: 12px; color: #b42318; margin-top: 4px; }
 
-.companyDocument {
-  font-size: 13.5px;
-  font-weight: 600;
-  color: var(--muted);
-  margin: 4px 0 0;
-  display: flex;
-  align-items: center;
-  gap: 4px;
-}
+/* Convites por e-mail pendentes */
+.pendingInvitesBox { margin-top: 16px; padding: 14px; border: 1px solid #fde68a; border-radius: 12px; background: #fffdf5; }
+.pendingInvitesTitle { display: flex; align-items: center; gap: 8px; font-size: 13px; font-weight: 700; color: #92400e; margin: 0 0 10px; }
+.pendingInvitesList { list-style: none; display: flex; flex-direction: column; gap: 6px; }
+.pendingInviteRow { display: flex; align-items: center; gap: 10px; padding: 8px 10px; border-radius: 9px; background: var(--card-bg); border: 1px solid #fef3c7; }
+.pendingInviteEmail { flex: 1; min-width: 0; font-size: 13px; font-weight: 600; overflow: hidden; text-overflow: ellipsis; }
+.pendingInviteRole { font-size: 12px; color: var(--muted); }
 
-.inlineIcon {
-  color: var(--muted);
-}
+/* Convidar por e-mail */
+.addMemberBox { margin-top: 16px; padding: 16px; border-radius: 12px; background: var(--surface-subtle); border: 1px solid var(--border); }
+.addMemberHeader { display: flex; align-items: flex-start; gap: 10px; margin-bottom: 12px; }
+.addMemberIcon { color: var(--accent); flex-shrink: 0; margin-top: 2px; }
+.addMemberTitle { font-size: 14px; font-weight: 700; margin: 0 0 2px; }
+.addMemberSubtitle { font-size: 12.5px; color: var(--muted); margin: 0; line-height: 1.5; }
 
-.companyBadges {
-  display: flex;
-  align-items: center;
-  gap: 10px;
-  flex-wrap: wrap;
-}
+/* ─── Formulários em linha (convite, empreendimento, criar organização) ─── */
+.inlineForm { display: flex; flex-wrap: wrap; align-items: center; gap: 10px; }
+.inputWrapper { position: relative; display: flex; align-items: center; flex: 1 1 260px; }
+.inputIcon { position: absolute; left: 12px; color: var(--muted); pointer-events: none; }
+.inputWrapper .inlineInputWithIcon { padding-left: 38px; }
+.inlineInput, .inlineInputWithIcon { flex: 1 1 200px; min-width: 0; min-height: 40px; padding: 0 12px; border: 1px solid var(--border); border-radius: 9px; background: var(--input-bg, #fff); color: var(--foreground); font: inherit; font-size: 13px; transition: border-color .15s, box-shadow .15s; }
+.inputWrapper .inlineInputWithIcon { width: 100%; }
+select.inlineInput { flex: 0 1 170px; }
+.inlineInput:focus, .inlineInputWithIcon:focus { outline: none; border-color: var(--accent); box-shadow: 0 0 0 3px var(--accent-light); }
+.primaryInlineButton, .inlineButton { display: inline-flex; align-items: center; justify-content: center; gap: 6px; min-height: 40px; padding: 0 18px; border: 0; border-radius: 9px; background: var(--accent); color: #fff; font: inherit; font-size: 13px; font-weight: 600; cursor: pointer; white-space: nowrap; box-shadow: 0 4px 12px -4px rgba(255, 56, 92, .55); transition: background .15s; }
+.primaryInlineButton:hover, .inlineButton:hover { background: var(--accent-hover); }
+.primaryInlineButton:disabled, .inlineButton:disabled { opacity: .7; cursor: wait; }
 
-.verifiedBadge {
-  display: inline-flex;
-  align-items: center;
-  gap: 6px;
-  background: rgba(34, 197, 94, 0.08);
-  color: #22c55e;
-  border: 1px solid rgba(34, 197, 94, 0.2);
-  font-weight: 600;
-  font-size: 12.5px;
-  padding: 6px 14px;
-  border-radius: var(--radius-full);
-}
+/* ─── Imóveis e responsáveis ─── */
+.listingList { list-style: none; display: flex; flex-direction: column; border: 1px solid var(--border); border-radius: 12px; overflow: hidden; }
+.listingRow { display: flex; align-items: center; gap: 14px; padding: 10px 14px; border-top: 1px solid var(--border); }
+.listingRow:first-child { border-top: 0; }
+.listingRow:hover { background: #fafbfc; }
+.listingThumb { width: 56px; height: 42px; flex-shrink: 0; display: grid; place-items: center; border-radius: 8px; object-fit: cover; background: var(--accent-light); color: var(--accent); }
+.listingInfo { display: flex; flex-direction: column; min-width: 0; flex: 1; }
+.listingInfo strong { font-size: 13.5px; font-weight: 600; overflow: hidden; text-overflow: ellipsis; white-space: nowrap; }
+.listingInfo span { font-size: 12px; color: var(--muted); overflow: hidden; text-overflow: ellipsis; white-space: nowrap; }
+.statusBadge { flex-shrink: 0; display: inline-flex; align-items: center; gap: 6px; padding: 3px 10px; border-radius: 99px; font-size: 11.5px; font-weight: 600; white-space: nowrap; background: #f1f5f9; color: #475569; border: 1px solid #e2e8f0; }
+.statusBadge::before { content: ""; width: 6px; height: 6px; border-radius: 50%; background: currentColor; }
+.statusBadge[data-status="APPROVED"] { background: #f0fdf4; color: #15803d; border-color: #bbf7d0; }
+.statusBadge[data-status="PENDING"] { background: #fffbeb; color: #b45309; border-color: #fde68a; }
+.statusBadge[data-status="REJECTED"] { background: #fef2f2; color: #b91c1c; border-color: #fecaca; }
+.statusBadge[data-status="SOLD"] { background: #eff6ff; color: #1d4ed8; border-color: #bfdbfe; }
+.statusBadge[data-status="RENTED"] { background: #f5f3ff; color: #6d28d9; border-color: #ddd6fe; }
+.listingAgent { flex-shrink: 0; width: 220px; font-size: 13px; color: var(--foreground); }
+.rowLink { flex-shrink: 0; font-size: 13px; font-weight: 600; color: var(--accent-hover); padding: 6px 12px; border: 1px solid var(--border); border-radius: 8px; }
+.rowLink:hover { background: var(--hover-bg); }
 
-.pendingBadge {
-  display: inline-flex;
-  align-items: center;
-  gap: 6px;
-  background: rgba(245, 158, 11, 0.08);
-  color: #f59e0b;
-  border: 1px solid rgba(245, 158, 11, 0.2);
-  font-weight: 600;
-  font-size: 12.5px;
-  padding: 6px 14px;
-  border-radius: var(--radius-full);
-}
+.agentSelectRow { display: flex; align-items: center; gap: 8px; flex-shrink: 0; width: 240px; }
+.agentSelectLabel { font-size: 11px; font-weight: 700; text-transform: uppercase; letter-spacing: .05em; color: var(--muted); }
+.agentSelect { flex: 1; min-width: 0; min-height: 36px; padding: 0 10px; border: 1px solid var(--border); border-radius: 9px; background: var(--input-bg, #fff); color: var(--foreground); font: inherit; font-size: 13px; font-weight: 600; cursor: pointer; }
+.agentSelect:hover { border-color: var(--border-hover); }
+.agentSelect:focus { outline: none; border-color: var(--accent); box-shadow: 0 0 0 3px var(--accent-light); }
+.agentSelectError { font-size: 12px; color: #b42318; }
 
-.metaStatBadge {
-  display: inline-flex;
-  align-items: center;
-  gap: 6px;
-  background: #f8fafc;
-  color: var(--foreground);
-  border: 1px solid var(--border);
-  font-weight: 700;
-  font-size: 12.5px;
-  padding: 6px 14px;
-  border-radius: var(--radius-full);
-}
+/* ─── Distribuição de leads ─── */
+.distributionRow { display: flex; flex-wrap: wrap; align-items: center; justify-content: space-between; gap: 12px; padding: 14px; border-radius: 12px; background: var(--surface-subtle); border: 1px solid var(--border); }
+.distributionRow select { min-height: 38px; padding: 0 12px; border-radius: 9px; cursor: pointer; }
+.primaryLink { display: inline-flex; align-items: center; gap: 6px; min-height: 40px; padding: 0 18px; border-radius: 9px; background: var(--accent); color: #fff; font-size: 13px; font-weight: 600; box-shadow: 0 4px 12px -4px rgba(255, 56, 92, .55); transition: background .15s; }
+.primaryLink:hover { background: var(--accent-hover); color: #fff; }
 
-.section {
-  background: var(--card-bg);
-  border: 1px solid var(--border);
-  border-radius: var(--radius-lg);
-  padding: 32px;
-  box-shadow: var(--shadow-sm);
-}
+/* ─── Empreendimentos ─── */
+.buildingGrid { display: grid; grid-template-columns: repeat(auto-fill, minmax(280px, 1fr)); gap: 12px; }
+.buildingCard { display: flex; flex-direction: column; gap: 12px; padding: 14px; border: 1px solid var(--border); border-radius: 12px; background: var(--card-bg); border-top: 3px solid #f59e0b; }
+.buildingHead strong { display: block; font-size: 14px; }
+.buildingMeta { display: flex; flex-wrap: wrap; align-items: center; gap: 4px; font-size: 12px; color: var(--muted); margin-top: 2px; }
+.buildingFields { display: grid; grid-template-columns: 1fr 1fr; gap: 10px; }
+.buildingField { display: flex; flex-direction: column; gap: 4px; font-size: 13px; margin: 0; min-width: 0; }
+.buildingField > span { font-size: 11px; font-weight: 700; text-transform: uppercase; letter-spacing: .05em; color: var(--muted); }
+.buildingField select { width: 100%; min-height: 36px; padding: 0 10px; border: 1px solid var(--border); border-radius: 9px; background: var(--input-bg, #fff); color: var(--foreground); font: inherit; font-size: 13px; cursor: pointer; }
+.buildingField select:focus { outline: none; border-color: var(--accent); box-shadow: 0 0 0 3px var(--accent-light); }
+.subForm { margin-top: 16px; padding: 14px; border-radius: 12px; background: var(--surface-subtle); border: 1px solid var(--border); }
+.subFormTitle { font-size: 13px; font-weight: 700; margin: 0 0 10px; }
 
-.sectionHeader {
-  display: flex;
-  align-items: flex-start;
-  justify-content: space-between;
-  margin-bottom: 24px;
-  gap: 16px;
-  flex-wrap: wrap;
-}
+/* ─── Auditoria ─── */
+.auditList { list-style: none; position: relative; display: flex; flex-direction: column; gap: 14px; padding-left: 22px; }
+.auditList::before { content: ""; position: absolute; left: 6px; top: 6px; bottom: 6px; width: 2px; background: var(--border); }
+.auditItem { position: relative; display: flex; flex-direction: column; gap: 2px; }
+.auditItem::before { content: ""; position: absolute; left: -21px; top: 5px; width: 12px; height: 12px; border-radius: 50%; background: #3b82f6; border: 2px solid var(--card-bg); box-shadow: 0 0 0 1px #bfdbfe; }
+.auditItem[data-action="LISTING_ORG_APPROVED"]::before { background: #16a34a; box-shadow: 0 0 0 1px #bbf7d0; }
+.auditItem[data-action="LISTING_ORG_REJECTED"]::before { background: #dc2626; box-shadow: 0 0 0 1px #fecaca; }
+.auditItem strong { font-size: 13.5px; }
+.auditItem span { font-size: 12.5px; color: var(--muted); }
+.auditReason { font-style: italic; }
 
-.sectionTitle {
-  font-size: 18px;
-  font-weight: 800;
-  color: var(--foreground);
-  letter-spacing: -0.02em;
-  margin: 0;
-  display: flex;
-  align-items: center;
-  gap: 8px;
-}
+/* ─── Vazio ─── */
+.emptyStateBox { display: flex; flex-direction: column; align-items: center; gap: 6px; padding: 26px 16px; border: 1px dashed var(--border-hover); border-radius: 12px; color: var(--muted); text-align: center; }
+.emptyStateBox > svg { color: var(--accent); }
+.empty { font-size: 13px; color: var(--muted); margin: 0; }
 
-.titleIcon {
-  color: var(--accent);
+@media (max-width: 860px) {
+  .memberRow { flex-wrap: wrap; }
+  .memberInfo { flex-basis: calc(100% - 140px); }
+  .memberControls { min-width: 0; width: 100%; justify-content: flex-start; padding-left: 54px; }
+  .memberControls:empty { display: none; }
+  .listingRow { flex-wrap: wrap; }
+  .listingInfo { flex-basis: calc(100% - 180px); }
+  .agentSelectRow, .listingAgent { width: 100%; padding-left: 70px; }
 }
-
-.sectionSubtitle {
-  font-size: 13.5px;
-  font-weight: 500;
-  color: var(--muted);
-  margin: 4px 0 0;
-}
-
-/* Grid de Membros */
-.membersGrid {
-  display: grid;
-  grid-template-columns: repeat(auto-fill, minmax(260px, 1fr));
-  gap: 14px;
-  margin-bottom: 24px;
-}
-
-.memberCard {
-  display: flex;
-  align-items: center;
-  flex-wrap: wrap;
-  row-gap: 8px;
-  gap: 12px;
-  padding: 14px 18px;
-  border: 1px solid var(--border);
-  border-radius: var(--radius-md);
-  background: var(--card-bg);
-  box-shadow: var(--shadow-sm);
-  transition: var(--transition);
-}
-
-.memberCard:hover {
-  border-color: var(--border-hover);
-  transform: translateY(-1px);
-  box-shadow: var(--shadow-md);
-}
-
-.memberAvatar {
-  width: 42px;
-  height: 42px;
-  border-radius: var(--radius-full);
-  object-fit: cover;
-  border: 1.5px solid var(--border);
-  flex-shrink: 0;
-}
-
-.memberInfo {
-  flex: 1;
-  min-width: 0;
-  display: flex;
-  flex-direction: column;
-}
-
-.memberName {
-  font-size: 14px;
-  font-weight: 600;
-  color: var(--foreground);
-  overflow: hidden;
-  text-overflow: ellipsis;
-  white-space: nowrap;
-}
-
-.memberEmail {
-  font-size: 12px;
-  color: var(--muted);
-  overflow: hidden;
-  text-overflow: ellipsis;
-  white-space: nowrap;
-  margin-top: 1px;
-}
-
-.roleBadge {
-  font-size: 10.5px;
-  font-weight: 800;
-  text-transform: uppercase;
-  letter-spacing: 0.04em;
-  padding: 4px 10px;
-  border-radius: var(--radius-full);
-  white-space: nowrap;
-}
-
-.roleBadgeOwner {
-  background: rgba(99, 102, 241, 0.1);
-  color: #6366f1;
-  border: 1px solid rgba(99, 102, 241, 0.2);
-}
-
-.roleBadgeAgent {
-  background: rgba(34, 197, 94, 0.1);
-  color: #22c55e;
-  border: 1px solid rgba(34, 197, 94, 0.2);
-}
-
-.removeMemberButton {
-  display: inline-flex;
-  align-items: center;
-  gap: 5px;
-  flex-shrink: 0;
-  background: rgba(239, 68, 68, 0.08);
-  color: #ef4444;
-  border: 1px solid rgba(239, 68, 68, 0.2);
-  font-weight: 700;
-  font-size: 12px;
-  padding: 6px 12px;
-  border-radius: var(--radius-full);
-  cursor: pointer;
-  font-family: inherit;
-  transition: var(--transition);
-  white-space: nowrap;
-}
-
-.removeMemberButton:hover:not(:disabled) {
-  background: rgba(239, 68, 68, 0.15);
-}
-
-.removeMemberButton:disabled {
-  opacity: 0.6;
-  cursor: not-allowed;
-}
-
-.removeMemberError {
-  font-size: 12px;
-  color: #ef4444;
-  margin: 4px 0 0;
-}
-
-/* Form de Adicionar Membro */
-.addMemberBox {
-  margin-top: 24px;
-  padding: 24px;
-  background: #f8fafc;
-  border: 1px solid var(--border);
-  border-radius: var(--radius-md);
-}
-
-.addMemberHeader {
-  display: flex;
-  align-items: flex-start;
-  gap: 10px;
-  margin-bottom: 16px;
-}
-
-.addMemberIcon {
-  color: var(--accent);
-  margin-top: 2px;
-  flex-shrink: 0;
-}
-
-.addMemberTitle {
-  font-size: 15px;
-  font-weight: 600;
-  color: var(--foreground);
-  margin: 0;
-}
-
-.addMemberSubtitle {
-  font-size: 13px;
-  color: var(--muted);
-  margin: 2px 0 0;
-}
-
-.inlineForm {
-  display: flex;
-  gap: 10px;
-  align-items: center;
-  flex-wrap: wrap;
-}
-
-.inputWrapper {
-  flex: 1;
-  min-width: 240px;
-  position: relative;
-  display: flex;
-  align-items: center;
-}
-
-.inputIcon {
-  position: absolute;
-  left: 14px;
-  color: var(--muted);
-  pointer-events: none;
-}
-
-.inlineInputWithIcon {
-  width: 100%;
-  padding: 10px 14px 10px 40px;
-  border: 1px solid var(--border);
-  border-radius: var(--radius-md);
-  font-size: 14px;
-  font-family: inherit;
-  background: var(--card-bg);
-  color: var(--foreground);
-  transition: var(--transition);
-}
-
-.inlineInputWithIcon:focus {
-  outline: none;
-  border-color: var(--accent);
-  box-shadow: 0 0 0 3px rgba(255, 56, 92, 0.12);
-}
-
-.primaryInlineButton {
-  padding: 10px 20px;
-  background: var(--foreground);
-  color: #fff;
-  border: none;
-  border-radius: var(--radius-md);
-  font-weight: 600;
-  font-size: 13.5px;
-  cursor: pointer;
-  font-family: inherit;
-  transition: var(--transition);
-  white-space: nowrap;
-}
-
-.primaryInlineButton:hover {
-  background: #0f172a;
-  transform: translateY(-1px);
-}
-
-.primaryInlineButton:disabled {
-  opacity: 0.6;
-  cursor: not-allowed;
-}
-
-.emptyStateBox {
-  padding: 32px 24px;
-  border: 1px dashed var(--border);
-  border-radius: var(--radius-md);
-  text-align: center;
-  background: #f8fafc;
-}
-
-.empty {
-  color: var(--muted);
-  font-size: 14px;
-  font-weight: 500;
-  margin: 0;
-}
-
-.listingsGrid {
-  display: grid;
-  grid-template-columns: repeat(auto-fill, minmax(260px, 1fr));
-  gap: 20px;
-}
-
-.listingCardWrap {
-  display: flex;
-  flex-direction: column;
-  gap: 10px;
-}
-
-.pendingInvitesBox {
-  margin-top: 20px;
-  padding: 20px;
-  border: 1px dashed var(--border);
-  border-radius: var(--radius-md);
-}
-
-.pendingInvitesTitle {
-  display: flex;
-  align-items: center;
-  gap: 6px;
-  font-size: 13.5px;
-  font-weight: 600;
-  color: var(--foreground);
-  margin: 0 0 12px;
-}
-
-.pendingInvitesList {
-  display: flex;
-  flex-direction: column;
-  gap: 8px;
-}
-
-.pendingInviteRow {
-  display: flex;
-  align-items: center;
-  gap: 10px;
-  padding: 8px 12px;
-  border: 1px solid var(--border);
-  border-radius: var(--radius-md);
-  background: var(--card-bg);
-  flex-wrap: wrap;
-}
-
-.pendingInviteEmail {
-  flex: 1;
-  min-width: 160px;
-  font-size: 13px;
-  font-weight: 600;
-  color: var(--foreground);
-}
-
-.pendingInviteRole {
-  font-size: 12px;
-  font-weight: 700;
-  color: var(--muted);
-}
-
-.agentSelectError {
-  color: var(--error, #ef4444);
-  font-size: 12px;
-  font-weight: 600;
-  margin: 6px 0 0;
-  width: 100%;
-}
-
-.pipelineLinkRow {
-  display: flex;
-  align-items: center;
-  justify-content: space-between;
-  gap: 16px;
-  flex-wrap: wrap;
-}
-
-.pipelineLink {
-  display: inline-flex;
-  align-items: center;
-  gap: 6px;
-  padding: 10px 18px;
-  border-radius: var(--radius-md);
-  background: var(--accent);
-  color: var(--accent-foreground, #fff);
-  font-size: 13.5px;
-  font-weight: 700;
-  transition: var(--transition);
-}
-
-.pipelineLink:hover {
-  opacity: 0.9;
+@media (max-width: 640px) {
+  .section { padding: 16px; }
+  .sectionHeader { flex-wrap: wrap; }
+  .headerLink { width: 100%; padding-top: 0; padding-left: 50px; }
+  .inlineForm > select.inlineInput { flex: 1 1 100%; }
+  .buildingFields { grid-template-columns: 1fr; }
+  .inlineForm > * { flex-basis: 100%; }
+  .primaryInlineButton, .inlineButton { width: 100%; }
+  .distributionRow > * { width: 100%; }
+  .primaryLink { justify-content: center; }
 }

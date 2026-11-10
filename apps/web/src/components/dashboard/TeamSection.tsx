@@ -1,11 +1,10 @@
 import Link from "next/link";
-import { BadgeCheck, Clock, Building2, Users, FileText, UserCheck, Home, Mail, UserPlus, ArrowRight } from "lucide-react";
+import { Users, Home, UserCheck, Mail, ArrowRight, Shuffle, Building2 } from "lucide-react";
 import { CreateOrganizationForm } from "./CreateOrganizationForm";
 import { InviteMemberForm } from "./InviteMemberForm";
 import { CancelInviteButton } from "./CancelInviteButton";
 import { ReassignAgentSelect } from "./ReassignAgentSelect";
 import { RemoveMemberButton } from "./RemoveMemberButton";
-import { OwnerListingCard } from "./OwnerListingCard";
 import { LeadDistributionModeToggle } from "./LeadDistributionModeToggle";
 import { ReceiveLeadsToggle } from "./ReceiveLeadsToggle";
 import type { MyOrganization, OrganizationListing } from "@/lib/organizations-api";
@@ -13,7 +12,7 @@ import type { OwnedListing } from "@/lib/listings-api";
 import type { OrganizationInvite } from "@zhivago/shared";
 import styles from "./TeamSection.module.css";
 
-const ROLE_LABELS: Record<string, string> = {
+export const ROLE_LABELS: Record<string, string> = {
   OWNER: "Proprietário",
   ADMIN: "Administrador",
   MANAGER: "Gerente",
@@ -21,7 +20,32 @@ const ROLE_LABELS: Record<string, string> = {
   ASSISTANT: "Assistente",
 };
 
+const STATUS_LABELS: Record<string, string> = { DRAFT: "Rascunho", PENDING: "Em análise", APPROVED: "Publicado", REJECTED: "Rejeitado", SOLD: "Vendido", RENTED: "Alugado" };
 const RECEIVES_LEADS_ROLES = ["BROKER", "MANAGER"];
+
+function initials(name: string) {
+  return name.trim().split(/\s+/).slice(0, 2).map((word) => word[0] ?? "").join("").toUpperCase() || "?";
+}
+
+function ListingRow({ listing, children }: { listing: OwnedListing; children?: React.ReactNode }) {
+  const cover = listing.images[0]?.url;
+  return (
+    <li className={styles.listingRow}>
+      {cover ? (
+        // eslint-disable-next-line @next/next/no-img-element
+        <img src={cover} alt="" className={styles.listingThumb} loading="lazy" />
+      ) : (
+        <span className={styles.listingThumb}><Home size={20} aria-hidden="true" /></span>
+      )}
+      <div className={styles.listingInfo}>
+        <strong>{listing.name}</strong>
+        <span>{listing.location}</span>
+      </div>
+      <span className={styles.statusBadge} data-status={listing.status}>{STATUS_LABELS[listing.status] ?? listing.status}</span>
+      {children}
+    </li>
+  );
+}
 
 export function TeamSection({
   isAgency,
@@ -53,205 +77,131 @@ export function TeamSection({
   const { role, organization } = membership;
   const hasOrgWideView = role === "OWNER" || role === "MANAGER" || role === "ADMIN" || role === "ASSISTANT";
   const canManageDistribution = role === "OWNER" || role === "ADMIN";
+  const members = [...organization.members].sort((a, b) => (a.role === "OWNER" ? -1 : b.role === "OWNER" ? 1 : 0));
+  const listings = hasOrgWideView ? organizationListings : assignedListings;
 
   return (
     <div className={styles.container}>
-      {/* Banner Principal da Organização */}
-      <section className={styles.companyBanner}>
-        <div className={styles.companyBannerHeader}>
-          <div className={styles.companyTitleGroup}>
-            <div className={styles.companyIconWrap}>
-              <Building2 size={24} />
-            </div>
-            <div>
-              <h2 className={styles.companyName}>{organization.name}</h2>
-              <p className={styles.companyDocument}>
-                <FileText size={13} className={styles.inlineIcon} />
-                CNPJ: {organization.document}
-              </p>
-            </div>
-          </div>
-
-          <div className={styles.companyBadges}>
-            {organization.verified ? (
-              <span className={styles.verifiedBadge}>
-                <BadgeCheck size={14} />
-                Organização verificada
-              </span>
-            ) : (
-              <span className={styles.pendingBadge}>
-                <Clock size={14} />
-                Aguardando verificação
-              </span>
-            )}
-            <span className={styles.metaStatBadge}>
-              <Users size={14} />
-              {organization.members.length} {organization.members.length === 1 ? "Membro" : "Membros"}
-            </span>
-          </div>
-        </div>
-      </section>
-
-      {/* Seção Membros da Equipe */}
       <section className={styles.section}>
         <div className={styles.sectionHeader}>
-          <div>
-            <h3 className={styles.sectionTitle}>
-              <Users size={18} className={styles.titleIcon} />
-              Membros da Equipe ({organization.members.length})
-            </h3>
-            <p className={styles.sectionSubtitle}>
-              Corretores e gestores com acesso aos imóveis corporativos da organização.
-            </p>
+          <span className={styles.sectionIcon} data-tone="accent"><Users size={18} aria-hidden="true" /></span>
+          <div className={styles.sectionText}>
+            <h2 className={styles.sectionTitle}>Membros da equipe <span className={styles.count}>{members.length}</span></h2>
+            <p className={styles.sectionSubtitle}>Corretores e gestores com acesso aos imóveis e clientes da imobiliária.</p>
           </div>
         </div>
 
-        <div className={styles.membersGrid}>
-          {organization.members.map((member) => (
-            <div key={member.id} className={styles.memberCard}>
-              {/* eslint-disable-next-line @next/next/no-img-element */}
-              <img
-                src={
-                  member.user?.avatar ??
-                  `https://ui-avatars.com/api/?name=${encodeURIComponent(
-                    member.user?.name ?? "Corretor"
-                  )}&background=f0f0f0`
-                }
-                alt={member.user?.name ?? "Membro"}
-                className={styles.memberAvatar}
-              />
-              <div className={styles.memberInfo}>
-                <span className={styles.memberName}>{member.user?.name ?? member.userId}</span>
-                <span className={styles.memberEmail}>{member.user?.email}</span>
-              </div>
-              <span
-                className={`${styles.roleBadge} ${
-                  member.role === "OWNER" ? styles.roleBadgeOwner : styles.roleBadgeAgent
-                }`}
-              >
-                {ROLE_LABELS[member.role] ?? member.role}
-              </span>
-              {RECEIVES_LEADS_ROLES.includes(member.role) &&
-                (canManageTeam || member.userId === currentUserId) && (
-                  <ReceiveLeadsToggle userId={member.userId} receiveLeads={member.receiveLeads} />
+        <ul className={styles.memberList}>
+          {members.map((member) => {
+            const name = member.user?.name ?? "Membro";
+            const isMe = member.userId === currentUserId;
+            return (
+              <li key={member.id} className={styles.memberRow}>
+                {member.user?.avatar ? (
+                  // eslint-disable-next-line @next/next/no-img-element
+                  <img src={member.user.avatar} alt="" className={styles.memberAvatar} />
+                ) : (
+                  <span className={styles.memberAvatar} data-role={member.role}>{initials(name)}</span>
                 )}
-              {canManageTeam && member.role !== "OWNER" && (
-                <RemoveMemberButton userId={member.userId} name={member.user?.name ?? "este membro"} />
-              )}
-            </div>
-          ))}
-        </div>
+                <div className={styles.memberInfo}>
+                  <span className={styles.memberName}>{name}{isMe && <small className={styles.youTag}>você</small>}</span>
+                  <span className={styles.memberEmail}>{member.user?.email}</span>
+                </div>
+                <span className={styles.roleBadge} data-role={member.role}>{ROLE_LABELS[member.role] ?? member.role}</span>
+                <div className={styles.memberControls}>
+                  {RECEIVES_LEADS_ROLES.includes(member.role) && (canManageTeam || isMe) && (
+                    <span className={styles.leadsToggle}><ReceiveLeadsToggle userId={member.userId} receiveLeads={member.receiveLeads} /></span>
+                  )}
+                  {canManageTeam && member.role !== "OWNER" && !isMe && (
+                    <RemoveMemberButton userId={member.userId} name={name} />
+                  )}
+                </div>
+              </li>
+            );
+          })}
+        </ul>
 
         {canManageTeam && (
           <>
-            <InviteMemberForm />
-
             {pendingInvites.length > 0 && (
               <div className={styles.pendingInvitesBox}>
                 <p className={styles.pendingInvitesTitle}>
-                  <Mail size={15} className={styles.inlineIcon} />
-                  Convites pendentes ({pendingInvites.length})
+                  <Mail size={15} aria-hidden="true" />
+                  Convites por e-mail aguardando resposta <span className={styles.count} data-tone="amber">{pendingInvites.length}</span>
                 </p>
-                <div className={styles.pendingInvitesList}>
+                <ul className={styles.pendingInvitesList}>
                   {pendingInvites.map((invite) => (
-                    <div key={invite.id} className={styles.pendingInviteRow}>
+                    <li key={invite.id} className={styles.pendingInviteRow}>
                       <span className={styles.pendingInviteEmail}>{invite.email}</span>
-                      <span className={styles.pendingInviteRole}>{ROLE_LABELS[invite.role] ?? invite.role}</span>
+                      <span className={styles.roleBadge} data-role={invite.role}>{ROLE_LABELS[invite.role] ?? invite.role}</span>
                       <CancelInviteButton id={invite.id} />
-                    </div>
+                    </li>
                   ))}
-                </div>
+                </ul>
               </div>
             )}
+            <InviteMemberForm />
           </>
         )}
       </section>
 
-      {/* Seção Imóveis */}
-      {hasOrgWideView ? (
-        <section className={styles.section}>
-          <div className={styles.sectionHeader}>
-            <div>
-              <h3 className={styles.sectionTitle}>
-                <Home size={18} className={styles.titleIcon} />
-                Imóveis da Organização ({organizationListings.length})
-              </h3>
-              <p className={styles.sectionSubtitle}>
-                Atribua ou altere o corretor responsável pela gestão e atendimento de cada imóvel.
-              </p>
-            </div>
+      <section className={styles.section}>
+        <div className={styles.sectionHeader}>
+          <span className={styles.sectionIcon} data-tone="blue">{hasOrgWideView ? <Building2 size={18} aria-hidden="true" /> : <UserCheck size={18} aria-hidden="true" />}</span>
+          <div className={styles.sectionText}>
+            <h2 className={styles.sectionTitle}>{hasOrgWideView ? "Responsáveis pelos imóveis" : "Meus imóveis atribuídos"} <span className={styles.count}>{listings.length}</span></h2>
+            <p className={styles.sectionSubtitle}>
+              {hasOrgWideView
+                ? canManageTeam ? "Escolha o corretor responsável pela gestão e atendimento de cada imóvel." : "Corretor responsável pela gestão e atendimento de cada imóvel."
+                : "Imóveis da imobiliária pelos quais você é o corretor responsável."}
+            </p>
           </div>
+          <Link href="/empresa/imoveis" className={styles.headerLink}>Ver em Imóveis <ArrowRight size={14} aria-hidden="true" /></Link>
+        </div>
 
-          {organizationListings.length === 0 ? (
-            <div className={styles.emptyStateBox}>
-              <p className={styles.empty}>Nenhum imóvel cadastrado no portfólio corporativo ainda.</p>
-            </div>
-          ) : (
-            <div className={styles.listingsGrid}>
-              {organizationListings.map((listing) => (
-                <div key={listing.id} className={styles.listingCardWrap}>
-                  <OwnerListingCard listing={listing} />
-                  {canManageTeam && (
-                    <ReassignAgentSelect
-                      listingId={listing.id}
-                      currentAgentId={listing.agent?.id ?? null}
-                      members={organization.members}
-                    />
-                  )}
-                </div>
-              ))}
-            </div>
-          )}
-        </section>
-      ) : (
-        <section className={styles.section}>
-          <div className={styles.sectionHeader}>
-            <div>
-              <h3 className={styles.sectionTitle}>
-                <UserCheck size={18} className={styles.titleIcon} />
-                Meus Imóveis Atribuídos ({assignedListings.length})
-              </h3>
-              <p className={styles.sectionSubtitle}>
-                Imóveis da organização pelos quais você é o corretor responsável.
-              </p>
-            </div>
+        {listings.length === 0 ? (
+          <div className={styles.emptyStateBox}>
+            <Home size={22} aria-hidden="true" />
+            <p className={styles.empty}>{hasOrgWideView ? "Nenhum imóvel cadastrado na imobiliária ainda." : "Nenhum imóvel atribuído a você no momento."}</p>
           </div>
-
-          {assignedListings.length === 0 ? (
-            <div className={styles.emptyStateBox}>
-              <p className={styles.empty}>Nenhum imóvel atribuído a você no momento.</p>
-            </div>
-          ) : (
-            <div className={styles.listingsGrid}>
-              {assignedListings.map((listing) => (
-                <OwnerListingCard key={listing.id} listing={listing} />
-              ))}
-            </div>
-          )}
-        </section>
-      )}
+        ) : (
+          <ul className={styles.listingList}>
+            {hasOrgWideView
+              ? organizationListings.map((listing) => (
+                  <ListingRow key={listing.id} listing={listing}>
+                    {canManageTeam ? (
+                      <ReassignAgentSelect listingId={listing.id} currentAgentId={listing.agent?.id ?? null} members={organization.members} />
+                    ) : (
+                      <span className={styles.listingAgent}>{listing.agent?.name ?? "Sem responsável"}</span>
+                    )}
+                  </ListingRow>
+                ))
+              : assignedListings.map((listing) => (
+                  <ListingRow key={listing.id} listing={listing}>
+                    <Link href={`/anuncios/${listing.id}/editar`} className={styles.rowLink}>Editar</Link>
+                  </ListingRow>
+                ))}
+          </ul>
+        )}
+      </section>
 
       <section className={styles.section}>
         <div className={styles.sectionHeader}>
-          <div>
-            <h3 className={styles.sectionTitle}>
-              <UserPlus size={18} className={styles.titleIcon} />
-              Leads
-            </h3>
+          <span className={styles.sectionIcon} data-tone="violet"><Shuffle size={18} aria-hidden="true" /></span>
+          <div className={styles.sectionText}>
+            <h2 className={styles.sectionTitle}>Distribuição de leads</h2>
             <p className={styles.sectionSubtitle}>
-              Acompanhe conversas, atribuições, visitas e o funil completo no pipeline de leads.
+              Manual: um gestor escolhe quem atende cada cliente. Round robin: os novos clientes são divididos em rodízio entre quem recebe leads.
             </p>
           </div>
         </div>
-
-        <div className={styles.pipelineLinkRow}>
-          <Link href="/imobiliaria" className={styles.pipelineLink}>
-            Ver pipeline de leads
-            <ArrowRight size={14} />
-          </Link>
-          {canManageDistribution && (
+        <div className={styles.distributionRow}>
+          {canManageDistribution ? (
             <LeadDistributionModeToggle mode={organization.leadDistributionMode} />
+          ) : (
+            <span className={styles.muted}>Modo atual: <strong>{organization.leadDistributionMode === "ROUND_ROBIN" ? "Round robin" : "Manual"}</strong></span>
           )}
+          <Link href="/imobiliaria" className={styles.primaryLink}>Abrir Kanban <ArrowRight size={15} aria-hidden="true" /></Link>
         </div>
       </section>
     </div>

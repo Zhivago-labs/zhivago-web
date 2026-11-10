@@ -14,9 +14,9 @@ export function InviteMemberForm() {
       <div className={styles.addMemberHeader}>
         <UserPlus size={18} className={styles.addMemberIcon} />
         <div>
-          <h4 className={styles.addMemberTitle}>Convidar Membro</h4>
+          <h4 className={styles.addMemberTitle}>Convidar por e-mail</h4>
           <p className={styles.addMemberSubtitle}>
-            Envie um convite por e-mail — a pessoa entra na organização só depois de aceitar.
+            Para gerentes e administradores, ou se preferir não usar o código. A pessoa entra só depois de aceitar.
           </p>
         </div>
       </div>

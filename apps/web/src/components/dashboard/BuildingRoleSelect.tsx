@@ -28,14 +28,6 @@ export function BuildingRoleSelect({
         name="memberId"
         defaultValue={currentMemberId ?? ""}
         onChange={() => formRef.current?.requestSubmit()}
-        style={{
-          padding: "6px 10px",
-          borderRadius: "8px",
-          border: "1px solid var(--border)",
-          fontSize: "13px",
-          background: "var(--card-bg)",
-          color: "var(--foreground)",
-        }}
       >
         <option value="">Ninguém</option>
         {eligibleMembers.map((m) => (

@@ -14,29 +14,30 @@ export function AuditLogSection({ entries }: { entries: OrganizationAuditLogEntr
   return (
     <section className={styles.section}>
       <div className={styles.sectionHeader}>
-        <FileClock size={18} className={styles.titleIcon} />
-        <div>
+        <span className={styles.sectionIcon}><FileClock size={18} aria-hidden="true" /></span>
+        <div className={styles.sectionText}>
           <h2 className={styles.sectionTitle}>Auditoria</h2>
           <p className={styles.sectionSubtitle}>
-            Mudanças de responsabilidade de empreendimento e moderação de imóvel — quem, quando e por quê.
+            Mudanças de responsável por empreendimento e moderação de anúncios — quem, quando e por quê.
           </p>
         </div>
       </div>
 
       {entries.length === 0 ? (
-        <p className={styles.sectionSubtitle}>Nenhum registro de auditoria ainda.</p>
-      ) : (
-        <div style={{ display: "flex", flexDirection: "column", gap: "8px" }}>
-          {entries.map((entry) => (
-            <div key={entry.id} className={styles.memberCard} style={{ flexDirection: "column", alignItems: "flex-start" }}>
-              <span className={styles.memberName}>{ACTION_LABELS[entry.action] ?? entry.action}</span>
-              <span className={styles.memberEmail}>
-                {entry.actor.user?.name ?? "—"} · {new Date(entry.createdAt).toLocaleString("pt-BR")}
-              </span>
-              {entry.reason && <span className={styles.memberEmail}>Motivo: {entry.reason}</span>}
-            </div>
-          ))}
+        <div className={styles.emptyStateBox}>
+          <FileClock size={22} aria-hidden="true" />
+          <p className={styles.empty}>Nenhum registro de auditoria ainda.</p>
         </div>
+      ) : (
+        <ol className={styles.auditList}>
+          {entries.map((entry) => (
+            <li key={entry.id} className={styles.auditItem} data-action={entry.action}>
+              <strong>{ACTION_LABELS[entry.action] ?? entry.action}</strong>
+              <span>{entry.actor.user?.name ?? "—"} · {new Date(entry.createdAt).toLocaleString("pt-BR", { dateStyle: "short", timeStyle: "short" })}</span>
+              {entry.reason && <span className={styles.auditReason}>Motivo: {entry.reason}</span>}
+            </li>
+          ))}
+        </ol>
       )}
     </section>
   );
