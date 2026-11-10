@@ -27,6 +27,10 @@ export default async function WelcomePage({ searchParams }: Props) {
   }
 
   const safeNext = safeRedirectTarget(next, "") || undefined;
+  // Link de convite da imobiliária: já abre em "Tenho um código" com o código preenchido.
+  const inviteCode = safeNext?.startsWith("/entrar-imobiliaria")
+    ? new URL(safeNext, "https://zhivago.local").searchParams.get("codigo")?.slice(0, 12) || undefined
+    : undefined;
 
   return (
     <main className={styles.main}>
@@ -34,7 +38,7 @@ export default async function WelcomePage({ searchParams }: Props) {
       <div className={styles.contentArea}>
         <div className={styles.authCard}>
           <div className={styles.cardBody}>
-            <OnboardingForm firstName={user.name.split(" ")[0] ?? user.name} next={safeNext} />
+            <OnboardingForm firstName={user.name.split(" ")[0] ?? user.name} next={safeNext} inviteCode={inviteCode} />
           </div>
         </div>
       </div>

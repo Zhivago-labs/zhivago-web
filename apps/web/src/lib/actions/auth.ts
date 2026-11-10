@@ -5,6 +5,7 @@ import { cookies } from "next/headers";
 import { redirect } from "next/navigation";
 import { getApiUrl } from "@/lib/api";
 import { TOKEN_COOKIE } from "@/lib/session";
+import { requestToJoin } from "@/lib/actions/join-requests";
 
 export type AuthFormState = { error: string } | undefined;
 
@@ -161,6 +162,15 @@ export async function completeOnboardingAction(
   formData: FormData
 ): Promise<AuthFormState> {
   const accountType = formData.get("accountType") === "AGENCY" ? "AGENCY" : "INDIVIDUAL";
+
+  // Corretor com código de convite: não cria imobiliária. O servidor registra o pedido (o dono
+  // aprova depois) e já conclui o cadastro; a pessoa acompanha o status em /entrar-imobiliaria.
+  if (accountType === "AGENCY" && formData.get("agencyMode") === "join") {
+    const result = await requestToJoin(String(formData.get("code") ?? ""));
+    if (result) return result;
+    redirect("/entrar-imobiliaria");
+  }
+
   const companyName = String(formData.get("companyName") ?? "").trim();
   const document = String(formData.get("document") ?? "").trim();
   const creci = String(formData.get("creci") ?? "").trim();

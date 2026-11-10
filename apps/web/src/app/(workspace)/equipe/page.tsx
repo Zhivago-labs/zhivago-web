@@ -15,6 +15,8 @@ import { TeamSection } from "@/components/dashboard/TeamSection";
 import { PendingInviteCard } from "@/components/dashboard/PendingInviteCard";
 import { BuildingsSection } from "@/components/dashboard/BuildingsSection";
 import { AuditLogSection } from "@/components/dashboard/AuditLogSection";
+import { JoinCodeSection } from "@/components/dashboard/JoinCodeSection";
+import { getJoinCode, getPendingJoinRequests } from "@/lib/join-requests-api";
 import styles from "./page.module.css";
 
 export const metadata: Metadata = { title: "Equipe" };
@@ -73,12 +75,14 @@ export default async function EquipePage() {
   const canManageTeam = MANAGE_ROLES.includes(membership.role);
   const hasOrgWideView = ORG_WIDE_VIEW_ROLES.includes(membership.role);
 
-  const [organizationListings, assignedListings, pendingInvites, buildings, auditLog] = await Promise.all([
+  const [organizationListings, assignedListings, pendingInvites, buildings, auditLog, joinCode, joinRequests] = await Promise.all([
     hasOrgWideView ? getOrganizationListings(token) : Promise.resolve([]),
     !hasOrgWideView ? getMyAssignedListings(token) : Promise.resolve([]),
     canManageTeam ? getOrganizationInvites(token) : Promise.resolve([]),
     getOrganizationBuildings(token),
     canManageTeam ? getOrganizationAuditLog(token) : Promise.resolve(null),
+    canManageTeam ? getJoinCode(token) : Promise.resolve(null),
+    canManageTeam ? getPendingJoinRequests(token) : Promise.resolve([]),
   ]);
 
   const eligibleMembers = membership.organization.members.filter(
@@ -95,6 +99,8 @@ export default async function EquipePage() {
       <p className={styles.subtitle}>
         Gerencie os membros da sua organização e os imóveis atribuídos a cada corretor.
       </p>
+
+      {joinCode && <JoinCodeSection code={joinCode} requests={joinRequests} organizationName={membership.organization.name} />}
 
       <TeamSection
         isAgency={isAgency}

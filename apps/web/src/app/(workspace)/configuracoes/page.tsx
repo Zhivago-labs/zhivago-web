@@ -7,6 +7,7 @@ import { PushNotificationOptIn } from "@/components/PushNotificationOptIn";
 import { AgencyBadge } from "@/components/AgencyBadge";
 import { getAgencyProfile } from "@/lib/api";
 import { canEditShowcase } from "@/lib/showcase";
+import { getMyOrganization } from "@/lib/organizations-api";
 import {
   Settings,
   ArrowLeft,
@@ -19,6 +20,7 @@ import {
   FileText,
   Store,
   ChevronRight,
+  KeyRound,
 } from "lucide-react";
 import styles from "./page.module.css";
 
@@ -32,6 +34,8 @@ export default async function SettingsPage() {
   // O admin da plataforma não tem vitrine — pula a chamada.
   const showcaseEditable =
     user.role !== "ADMIN" && canEditShowcase(await getAgencyProfile(user.id), user);
+  // Conta pessoal pode entrar como corretor numa imobiliária usando o código de convite.
+  const canJoinAgency = user.role !== "ADMIN" && user.accountType !== "AGENCY" && !(await getMyOrganization(token));
 
   return (
     <main className={styles.main}>
@@ -63,6 +67,21 @@ export default async function SettingsPage() {
                   <h2 className={styles.cardTitle}>Minha imobiliária</h2>
                   <p className={styles.cardSubtitle}>
                     Foto de capa, logo, apresentação e contato que aparecem na vitrine pública da imobiliária.
+                  </p>
+                </div>
+                <ChevronRight size={20} className={styles.showcaseChevron} />
+              </div>
+            </Link>
+          )}
+
+          {canJoinAgency && (
+            <Link href="/entrar-imobiliaria" className={`${styles.card} ${styles.showcaseCard}`}>
+              <div className={styles.cardHeader}>
+                <KeyRound size={20} className={styles.cardIcon} />
+                <div style={{ flex: 1 }}>
+                  <h2 className={styles.cardTitle}>Entrar em uma imobiliária</h2>
+                  <p className={styles.cardSubtitle}>
+                    Trabalha como corretor? Use o código de convite da imobiliária para pedir acesso à equipe.
                   </p>
                 </div>
                 <ChevronRight size={20} className={styles.showcaseChevron} />

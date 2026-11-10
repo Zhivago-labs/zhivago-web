@@ -24,14 +24,18 @@ const OPTIONS: { value: UsageType; title: string; text: string; Icon: typeof Use
   },
 ];
 
-export function OnboardingForm({ firstName, next }: { firstName: string; next?: string }) {
+export function OnboardingForm({ firstName, next, inviteCode }: { firstName: string; next?: string; inviteCode?: string }) {
   const [state, formAction, pending] = useActionState(completeOnboardingAction, undefined);
-  const [usage, setUsage] = useState<UsageType>("INDIVIDUAL");
+  // Quem chega por um link de convite (/entrar-imobiliaria?codigo=...) já vem em "Tenho um código".
+  const [usage, setUsage] = useState<UsageType>(inviteCode ? "AGENCY" : "INDIVIDUAL");
+  const [agencyMode, setAgencyMode] = useState<"create" | "join">(inviteCode ? "join" : "create");
+  const joining = usage === "AGENCY" && agencyMode === "join";
 
   return (
     <form action={formAction} className={styles.form}>
       {next && <input type="hidden" name="next" value={next} />}
       <input type="hidden" name="accountType" value={usage} />
+      <input type="hidden" name="agencyMode" value={agencyMode} />
 
       <div className={styles.brandHeader}>
         <Image
@@ -64,6 +68,28 @@ export function OnboardingForm({ firstName, next }: { firstName: string; next?: 
       </div>
 
       {usage === "AGENCY" && (
+        <div className={styles.agencyModes} role="radiogroup" aria-label="Como você vai entrar">
+          {([["create", "Criar minha imobiliária"], ["join", "Tenho um código de convite"]] as const).map(([value, label]) => (
+            <button key={value} type="button" role="radio" aria-checked={agencyMode === value} className={`${styles.agencyMode} ${agencyMode === value ? styles.agencyModeActive : ""}`} onClick={() => setAgencyMode(value)}>
+              {label}
+            </button>
+          ))}
+        </div>
+      )}
+
+      {joining && (
+        <>
+          <div className={styles.airbnbInputGroup}>
+            <div className={styles.airbnbInputField} style={{ borderBottom: 0 }}>
+              <label htmlFor="code" className={styles.airbnbLabel}>Código de convite</label>
+              <input id="code" name="code" type="text" placeholder="ABCD-2345" required autoComplete="off" autoCapitalize="characters" spellCheck={false} maxLength={12} defaultValue={inviteCode} className={`${styles.airbnbInput} ${styles.codeInput}`} />
+            </div>
+          </div>
+          <p className={styles.fieldHint}>Peça o código ao dono ou administrador da imobiliária. Você entra como corretor assim que ele aprovar o seu pedido.</p>
+        </>
+      )}
+
+      {usage === "AGENCY" && !joining && (
         <div className={styles.airbnbInputGroup}>
           <div className={styles.airbnbInputField}>
             <label htmlFor="companyName" className={styles.airbnbLabel}>Nome Fantasia</label>
@@ -111,7 +137,7 @@ export function OnboardingForm({ firstName, next }: { firstName: string; next?: 
       {state?.error && <FeedbackNotice>{state.error}</FeedbackNotice>}
 
       <button type="submit" className={styles.airbnbButton} disabled={pending}>
-        <span>{pending ? "Salvando…" : "Concordar e continuar"}</span>
+        <span>{pending ? "Salvando…" : joining ? "Concordar e enviar pedido" : "Concordar e continuar"}</span>
       </button>
     </form>
   );

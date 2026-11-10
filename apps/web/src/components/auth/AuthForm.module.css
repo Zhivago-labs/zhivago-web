@@ -405,6 +405,47 @@
   color: var(--muted, #64748b);
 }
 
+/* Dentro de "Imobiliário": criar a própria imobiliária ou entrar numa com código de convite. */
+.agencyModes {
+  display: grid;
+  grid-template-columns: 1fr 1fr;
+  gap: 4px;
+  padding: 4px;
+  border-radius: 10px;
+  background: #f1f5f9;
+}
+
+.agencyMode {
+  padding: 9px 10px;
+  border: 0;
+  border-radius: 8px;
+  background: transparent;
+  font: inherit;
+  font-size: 13px;
+  font-weight: 600;
+  color: var(--muted, #64748b);
+  cursor: pointer;
+}
+
+.agencyModeActive {
+  background: #ffffff;
+  color: var(--foreground, #0f172a);
+  box-shadow: 0 1px 3px rgba(15, 23, 42, 0.12);
+}
+
+.codeInput {
+  font-size: 18px !important;
+  font-weight: 700;
+  letter-spacing: 0.12em;
+  text-transform: uppercase;
+}
+
+.fieldHint {
+  font-size: 12px;
+  line-height: 1.5;
+  color: var(--muted, #64748b);
+}
+
 @media (max-width: 420px) {
   .usageOptions {
     grid-template-columns: 1fr;
