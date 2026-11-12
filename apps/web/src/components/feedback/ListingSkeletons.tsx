@@ -3,13 +3,13 @@ import explorer from "../ListingsExplorer.module.css";
 import styles from "./ListingSkeletons.module.css";
 import loading from "./LoadingState.module.css";
 
-export function ListingSkeletons() {
+export function ListingSkeletons({ explore = false }: { explore?: boolean }) {
   return (
     <div role="status" aria-busy="true">
       <span className={loading.srOnly}>Carregando</span>
       <div className={`${explorer.grid} ${loading.delayed}`} aria-hidden="true">
         {Array.from({ length: 8 }, (_, index) => (
-          <div className={card.card} key={index}>
+          <div className={`${card.card} ${explore ? card.exploreCard : ""}`} key={index}>
             <div className={`${card.imageWrap} ${styles.bone}`} />
             <div className={card.info}>
               <div className={card.tagRow}><span className={`${styles.bone} ${styles.tag}`} /></div>

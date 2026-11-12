@@ -279,7 +279,7 @@
   max-height: 86vh;
   display: flex;
   flex-direction: column;
-  box-shadow: var(--shadow-xl);
+  box-shadow: var(--shadow-lg);
   overflow: hidden;
 }
 
@@ -684,4 +684,70 @@
   .showcaseExplorer .filtersBar { flex-wrap:nowrap; overflow-x:auto; padding:4px; }
   .showcaseExplorer .filtersBar > * { flex-shrink:0; }
   .showcaseExplorer .filterGroup { flex-wrap:nowrap; }
+}
+
+/* Public exploration layout, using the existing palette exclusively. */
+.searchControls { display: flex; flex-direction: column; gap: 16px; }
+.publicExplorer { gap: 24px; min-width: 0; }
+.publicExplorer .searchRow { max-width: 760px; }
+.publicExplorer .searchBox { min-height: 52px; }
+.publicExplorer .searchInput { font-size: 16px; }
+.publicExplorer .chip, .publicExplorer .advancedToggleBtn { min-height: 44px; font-size: 14px; }
+.publicExplorer .filtersBar { gap: 12px; }
+.quickSelect { display: inline-flex; align-items: center; gap: 8px; min-height: 44px; padding: 0 12px; border: 1px solid var(--border); border-radius: var(--radius-sm); background: var(--card-bg); font-size: 14px; font-weight: 600; }
+.quickSelect select { border: 0; background: var(--card-bg); color: var(--foreground); font: inherit; min-height: 42px; }
+.activeFilters { display: flex; flex-wrap: wrap; gap: 8px; }
+.activeFilters button { display: inline-flex; align-items: center; gap: 8px; max-width: 100%; overflow-wrap: anywhere; min-height: 44px; border: 1px solid var(--border); background: var(--card-bg); color: var(--foreground); border-radius: var(--radius-full); padding: 8px 12px; font-size: 13px; cursor: pointer; }
+.activeFilters svg { flex-shrink: 0; }
+.validationError { color: var(--error); font-size: 14px; line-height: 1.5; }
+.filterHint { color: var(--muted); font-size: 14px; line-height: 1.5; }
+.modalOverlay { z-index: 1100; }
+.modalPanel { max-width: 640px; }
+.modalCloseBtn, .numBtn, .amenityBtn, .clearQueryBtn, .suggestionRemove { min-width: 44px; min-height: 44px; }
+.suggestionItem { min-height: 44px; }
+.modalApplyBtn:disabled { cursor: not-allowed; opacity: 0.9; }
+.publicExplorer .sortSelect { min-height: 44px; font-size: 14px; }
+.publicExplorer .resultsHeader { scroll-margin-top: 100px; }
+.publicExplorer .grid { grid-template-columns: repeat(4, minmax(0, 1fr)); }
+.publicExplorer :focus-visible { outline: 2px solid var(--accent); outline-offset: 3px; }
+.publicExplorer .recentSection { padding-top: 24px; border-top: 1px solid var(--border); }
+@media (max-width: 1199px) { .publicExplorer .grid { grid-template-columns: repeat(3, minmax(0, 1fr)); } }
+@media (max-width: 1023px) { .publicExplorer .grid { grid-template-columns: repeat(2, minmax(0, 1fr)); gap: 20px; } }
+@media (max-width: 767px) {
+  .publicExplorer .grid { grid-template-columns: minmax(0, 1fr); }
+  .publicExplorer .searchRow { max-width: none; }
+  .publicExplorer .filtersBar { gap: 8px; }
+  .publicExplorer .filtersBar > .filterGroup:first-child { width: 100%; display: grid; grid-template-columns: repeat(4, minmax(0, 1fr)); }
+  .publicExplorer .filterGroup:first-child .chip { justify-content: center; padding: 8px 4px; font-size: 13px; }
+  .publicExplorer .filterSeparator { display: none; }
+  .publicExplorer .resultsHeader { align-items: flex-start; }
+  .publicExplorer .sortLabelText { display: none; }
+  .publicExplorer .sortSelect { max-width: 160px; }
+  .publicExplorer .resultsCount { font-size: 13px; padding-top: 12px; }
+  .modalOverlay { padding: 0; }
+  .modalPanel { max-width: none; height: 100dvh; max-height: 100dvh; border-radius: 0; }
+  .modalFooter { padding-bottom: max(16px, env(safe-area-inset-bottom)); }
+  .priceInput { font-size: 16px; min-width: 0; }
+  .modalClearBtn { max-width: 45%; text-align: left; min-height: 44px; }
+}
+
+.searchPrimary { display: flex; align-items: center; gap: 24px; }
+.searchPrimary .searchRow { flex: 1; }
+.searchPrimary > .filterGroup { flex-shrink: 0; }
+.publicExplorer .filtersBar { padding-bottom: 20px; border-bottom: 1px solid var(--border); }
+@media (min-width: 1200px) { .publicExplorer .searchRow { max-width: none; } }
+@media (max-width: 1023px) { .searchPrimary { flex-direction: column; align-items: stretch; gap: 16px; } }
+@media (max-width: 767px) {
+  .searchPrimary > .filterGroup { display: grid; grid-template-columns: repeat(4, minmax(0, 1fr)); gap: 4px; }
+  .searchPrimary > .filterGroup .chip { padding: 8px 4px; justify-content: center; font-size: 13px; }
+  .publicExplorer .filtersBar > .filterGroup:first-child { width: auto; display: flex; }
+  .publicExplorer .clearBtn { margin-left: 0; }
+  .publicExplorer .resultsHeader { gap: 8px; }
+}
+
+@media (max-width: 767px) {
+  .publicExplorer { gap: 20px; }
+  .publicExplorer .filtersBar > .filterGroup:first-child, .publicExplorer .quickPrice, .publicExplorer .quickSelect { display: none; }
+  .publicExplorer .filtersBar { justify-content: space-between; padding-bottom: 16px; }
+  .publicExplorer .advancedToggleBtn { min-width: 144px; justify-content: center; }
 }

@@ -42,7 +42,7 @@ export default async function ImoveisPage({ searchParams }: Props) {
     <main className={styles.main}>
       <div className={styles.heroSection}>
         <h1 className={styles.title}>Explorar imóveis</h1>
-        <p className={styles.subtitle}>Casas e apartamentos para comprar, alugar ou ficar por temporada.</p>
+        <p className={styles.subtitle}>Encontre seu próximo endereço.</p>
       </div>
 
       <StreamingListingsExplorer

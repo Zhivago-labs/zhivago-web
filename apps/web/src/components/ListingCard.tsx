@@ -44,6 +44,7 @@ export function ListingCard({
   isAdmin = false,
   compactLocation = false,
   priority = false,
+  explore = false,
 }: {
   listing: Listing;
   isAdmin?: boolean;
@@ -51,6 +52,7 @@ export function ListingCard({
   compactLocation?: boolean;
   // Primeiros cards da tela: foto baixa na hora, com prioridade, em vez de esperar o lazy loading.
   priority?: boolean;
+  explore?: boolean;
 }) {
   // Garantir fallback idêntico ao do mobile
   const bedrooms = listing.bedrooms || 0;
@@ -112,24 +114,40 @@ export function ListingCard({
   const { shownSrc, loading: photoLoading } = useSmoothImage(thumbnailUrl(currentImage?.url), neighborThumbs);
   const shownImage = images.find((img) => thumbnailUrl(img.url) === shownSrc) ?? currentImage;
 
+  const priceContent = (
+    <div className={styles.priceRow}>
+            {hasDiscount && (
+              <span className={styles.oldPrice}>
+                {Number(listing.originalPrice).toLocaleString("pt-BR", {
+                  style: "currency",
+                  currency: "BRL",
+                  maximumFractionDigits: 0,
+                })}
+              </span>
+            )}
+            <span className={styles.price}>{explore ? <>{listing.price.toLocaleString("pt-BR", { style: "currency", currency: "BRL", maximumFractionDigits: 0 })}{listing.operationType !== "SALE" && listing.category !== "venda" && <span className={styles.period}> /{listing.operationType === "MONTHLY_RENT" ? "mês" : listing.operationType === "DAILY_RENT" ? "noite" : listing.billingCycle ?? "noite"}</span>}</> : formatPrice(listing)}</span>
+            {hasDiscount && <span className={styles.discountTag}>{discountPercent}% OFF</span>}
+          </div>
+  );
+
   return (
     <>
-      <div className={styles.card}>
+      <div className={`${styles.card} ${explore ? styles.exploreCard : ""}`}>
         <div
           className={styles.imageWrap}
           onClick={handleOpenPhotos}
           onMouseEnter={hasMultiple && !warm ? () => setWarm(true) : undefined}
-          title="Clique para abrir as fotos"
+          title={images.length ? "Clique para abrir as fotos" : undefined}
         >
           {/* eslint-disable-next-line @next/next/no-img-element */}
-          <img
+          {images.length > 0 ? <img
             {...thumbnailImgProps(shownImage?.url)}
             alt={listing.name}
             className={styles.image}
             loading={priority ? "eager" : "lazy"}
             fetchPriority={priority ? "high" : "auto"}
             decoding="async"
-          />
+          /> : <div className={styles.noPhoto}>Foto indisponível</div>}
           <ImageLoadingIndicator visible={photoLoading} size={28} />
 
           {isAdmin && (
@@ -138,9 +156,11 @@ export function ListingCard({
 
           {listing.status === "SOLD" ? (
             <span className={styles.soldBadge}>VENDIDO</span>
-          ) : hasDiscount ? (
+          ) : hasDiscount && !explore ? (
             <span className={styles.discountBadge}>{discountPercent}% OFF</span>
           ) : null}
+
+          {explore && listing.status !== "SOLD" && <span className={styles.operationBadge}>{OPERATION_LABELS[listing.operationType] ?? (listing.category === "venda" ? "Venda" : "Aluguel")}</span>}
 
           {/* Setas de navegação inline no card (estilo clássico Airbnb) */}
           {hasMultiple && (
@@ -163,7 +183,7 @@ export function ListingCard({
               </button>
 
               {/* Indicadores de pontinhos (dots pagination) */}
-              <div className={styles.dotsPagination}>
+              <div className={styles.dotsPagination} hidden={explore}>
                 {images.slice(0, 5).map((_, i) => (
                   <span
                     key={i}
@@ -174,7 +194,7 @@ export function ListingCard({
             </>
           )}
 
-          <button
+          {images.length > 0 && <button
             type="button"
             className={styles.imageOverlayBadge}
             onClick={handleOpenPhotos}
@@ -182,7 +202,7 @@ export function ListingCard({
           >
             <Maximize2 size={12} />
             <span>{hasMultiple ? `${activeImageIndex + 1}/${images.length}` : "Ver foto"}</span>
-          </button>
+          </button>}
 
           <div className={styles.favoriteWrap} onClick={(e) => e.stopPropagation()}>
             <FavoriteButton listingId={listing.id} />
@@ -190,9 +210,10 @@ export function ListingCard({
         </div>
 
         <Link href={`/imovel/${listing.id}`} className={styles.info}>
+          {explore && priceContent}
           <div className={styles.tagRow}>
             <span className={styles.typeTag}>{TYPE_LABELS[listing.type]}</span>
-            <span className={styles.categoryTag}>{OPERATION_LABELS[listing.operationType] ?? (listing.category === "venda" ? "Venda" : "Aluguel")}</span>
+            <span className={styles.categoryTag} hidden={explore}>{OPERATION_LABELS[listing.operationType] ?? (listing.category === "venda" ? "Venda" : "Aluguel")}</span>
             {isVerified && (
               <span className={styles.verifiedTag}>
                 <BadgeCheck size={12} />
@@ -200,36 +221,26 @@ export function ListingCard({
               </span>
             )}
           </div>
+          {explore && <p className={styles.location}>{shortLocation(listing)}</p>}
           <h3 className={styles.name}>{listing.name}</h3>
-          <p className={styles.location}>{compactLocation ? shortLocation(listing) : listing.location}</p>
+          {!explore && <p className={styles.location}>{compactLocation ? shortLocation(listing) : listing.location}</p>}
           <div className={styles.amenities}>
             <span className={styles.amenityItem} title={`${bedrooms} quartos`}>
               <BedDouble size={15} />
-              <span>{bedrooms}</span>
+              <span>{bedrooms}{explore ? bedrooms === 1 ? " quarto" : " quartos" : ""}</span>
             </span>
             <span className={styles.amenityItem} title={`${bathrooms} banheiros`}>
               <Droplet size={15} />
-              <span>{bathrooms}</span>
+              <span>{bathrooms}{explore ? bathrooms === 1 ? " banho" : " banhos" : ""}</span>
             </span>
             <span className={styles.amenityItem} title={`${parking} vagas`}>
               <Car size={15} />
-              <span>{parking}</span>
+              <span>{parking}{explore ? parking === 1 ? " vaga" : " vagas" : ""}</span>
             </span>
           </div>
 
-          <div className={styles.priceRow}>
-            {hasDiscount && (
-              <span className={styles.oldPrice}>
-                {Number(listing.originalPrice).toLocaleString("pt-BR", {
-                  style: "currency",
-                  currency: "BRL",
-                  maximumFractionDigits: 0,
-                })}
-              </span>
-            )}
-            <span className={styles.price}>{formatPrice(listing)}</span>
-            {hasDiscount && <span className={styles.discountTag}>{discountPercent}% OFF</span>}
-          </div>
+          {!explore && priceContent}
+          {explore && <span className={styles.advertiser}>{listing.organization?.name ?? (listing.owner?.accountType === "AGENCY" ? listing.owner.companyName || listing.owner.name : "Direto com o anunciante")}</span>}
         </Link>
       </div>
 

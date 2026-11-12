@@ -26,7 +26,7 @@ export function StreamingListingsExplorer({ result, ...props }: Props) {
   return (
     <div aria-busy={resolved?.source !== result}>
       <ListingsExplorer {...props} listings={resolved?.data.listings ?? []}
-        loadError={resolved?.data.loadError ?? false} loading={resolved === null} />
+        loadError={resolved?.data.loadError ?? false} loading={resolved?.source !== result} />
     </div>
   );
 }

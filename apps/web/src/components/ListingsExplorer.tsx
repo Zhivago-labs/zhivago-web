@@ -1,6 +1,6 @@
 "use client";
 
-import { useEffect, useMemo, useRef, useState } from "react";
+import { useEffect, useMemo, useRef, useState, useId } from "react";
 import Link from "next/link";
 import {
   Search,
@@ -101,6 +101,9 @@ export function ListingsExplorer({
   showcase?: boolean;
   loading?: boolean;
 }) {
+  const suggestionsId = useId();
+  const dialogRef = useRef<HTMLDivElement>(null);
+  const [urlReady, setUrlReady] = useState(false);
   const [query, setQuery] = useState(initialQuery);
   const [searchOpen, setSearchOpen] = useState(false);
   const [recentSearches, setRecentSearches] = useState<string[]>([]);
@@ -129,16 +132,17 @@ export function ListingsExplorer({
   // Bloqueia o scroll do body enquanto o modal de filtros (bottom sheet no mobile) está aberto.
   useEffect(() => {
     if (!filtersModalOpen) return;
+    const previousOverflow = document.body.style.overflow;
     document.body.style.overflow = "hidden";
     return () => {
-      document.body.style.overflow = "";
+      document.body.style.overflow = previousOverflow;
     };
   }, [filtersModalOpen]);
 
   useEffect(() => {
-    if (!showcase || !filtersModalOpen) return;
+    if (!filtersModalOpen) return;
     const previousFocus = document.activeElement as HTMLElement | null;
-    const dialog = document.querySelector<HTMLElement>('[role="dialog"][aria-label="Filtros avançados"]');
+    const dialog = dialogRef.current;
     const focusable = () => Array.from(dialog?.querySelectorAll<HTMLElement>('button:not([disabled]), input:not([disabled]), select, [tabindex="0"]') ?? []);
     focusable()[0]?.focus();
     function handleKey(event: KeyboardEvent) {
@@ -165,10 +169,19 @@ export function ListingsExplorer({
   const hasActiveFilters =
     activeType !== null || activeCategory !== "todos" || activeAdvancedCount > 0 || query.trim() !== "";
 
+  const priceError = (minPrice && !/^\d{1,10}$/.test(minPrice)) ||
+    (maxPrice && !/^\d{1,10}$/.test(maxPrice))
+    ? "Informe preços inteiros, maiores ou iguais a zero (até 10 dígitos)."
+    : minPrice && maxPrice && Number(minPrice) > Number(maxPrice)
+      ? "O preço máximo deve ser maior ou igual ao mínimo." : "";
+  const currency = (value: string) => Number(value).toLocaleString("pt-BR", { style: "currency", currency: "BRL", maximumFractionDigits: 0 });
+  const priceSummary = [minPrice && `de ${currency(minPrice)}`, maxPrice && `até ${currency(maxPrice)}`].filter(Boolean).join(" ");
+  const period = activeCategory === "aluguel" ? "/mês" : activeCategory === "temporada" ? "/noite" : "";
+
   const filtered = useMemo(() => {
     const q = query.toLowerCase().trim();
-    const minP = minPrice ? Number(minPrice) : null;
-    const maxP = maxPrice ? Number(maxPrice) : null;
+    const minP = minPrice && !priceError ? Number(minPrice) : null;
+    const maxP = maxPrice && !priceError ? Number(maxPrice) : null;
 
     const data = listings.filter((item) => {
       const matchesType = !activeType || item.type === activeType;
@@ -245,6 +258,7 @@ export function ListingsExplorer({
     selectedAmenities,
     ownerFilter,
     sortOption,
+    priceError,
   ]);
 
   // Página atual presa à combinação de filtros/ordem: mudou qualquer um, volta pra página 1 sem
@@ -264,27 +278,65 @@ export function ListingsExplorer({
   ]);
   const [pageState, setPageState] = useState({ key: filterKey, page: 1 });
   const totalPages = Math.max(1, Math.ceil(filtered.length / PAGE_SIZE));
-  const page = pageState.key === filterKey ? Math.min(pageState.page, totalPages) : 1;
+  const page = (pageState.key === filterKey || pageState.key === "restore") ? Math.min(pageState.page, totalPages) : 1;
   const pageListings = filtered.slice((page - 1) * PAGE_SIZE, page * PAGE_SIZE);
   const resultsRef = useRef<HTMLDivElement>(null);
 
-  // Lido no mount (não no useState) porque o servidor não tem window; voltar de um imóvel com o
-  // "voltar" do navegador cai na mesma página da lista em vez da primeira. Tem que vir antes do
-  // efeito abaixo, que tira o ?pagina da URL enquanto a página ainda é 1.
+  // Restore all client filters before writing the URL or clamping the page to loaded results.
   useEffect(() => {
-    const pageFromUrl = Number(new URLSearchParams(window.location.search).get("pagina"));
-    if (!Number.isInteger(pageFromUrl) || pageFromUrl <= 1) return;
-    queueMicrotask(() => setPageState((prev) => ({ ...prev, page: pageFromUrl })));
+    const restore = () => {
+      const params = new URLSearchParams(window.location.search);
+      const minimum = (key: string, max: number) => {
+        const n = Number(params.get(key));
+        return Number.isInteger(n) && n >= 1 && n <= max ? n : null;
+      };
+      queueMicrotask(() => {
+        setQuery(params.get("q") ?? "");
+        const type = params.get("tipo");
+        setActiveType(type === "casa" || type === "apartamento" ? type : null);
+        const category = params.get("categoria");
+        setActiveCategory(category === "aluguel" || category === "venda" || category === "temporada" ? category : "todos");
+        setMinPrice(params.get("precoMin")?.match(/^\d{1,10}$/)?.[0] ?? "");
+        setMaxPrice(params.get("precoMax")?.match(/^\d{1,10}$/)?.[0] ?? "");
+        setMinBedrooms(minimum("quartos", 4));
+        setMinBathrooms(minimum("banheiros", 3));
+        setMinParking(minimum("vagas", 3));
+        setSelectedAmenities((params.get("comodidades") ?? "").split(",").filter(id => AVAILABLE_AMENITIES.some(a => a.id === id)));
+        const owner = params.get("anunciante");
+        setOwnerFilter(owner === "proprietario" || owner === "imobiliaria" ? owner : "todos");
+        const sort = params.get("ordem");
+        setSortOption(sort && Object.prototype.hasOwnProperty.call(SORT_LABELS, sort) ? sort as SortOption : "relevance");
+        const restoredPage = Number(params.get("pagina"));
+        setPageState({ key: "restore", page: Number.isSafeInteger(restoredPage) && restoredPage > 0 ? restoredPage : 1 });
+        setUrlReady(true);
+      });
+    };
+    restore();
+    window.addEventListener("popstate", restore);
+    return () => window.removeEventListener("popstate", restore);
   }, []);
 
-  // ?pagina=N na URL (sem criar entrada no histórico), pra recarregar/voltar manter a página.
   useEffect(() => {
-    if (loading) return;
+    if (!urlReady || loading || loadError || priceError) return;
     const url = new URL(window.location.href);
-    if (page > 1) url.searchParams.set("pagina", String(page));
-    else url.searchParams.delete("pagina");
+    const values: Record<string, string> = {
+      q: query.trim(), tipo: activeType ?? "", categoria: activeCategory === "todos" ? "" : activeCategory,
+      precoMin: minPrice, precoMax: maxPrice, quartos: minBedrooms?.toString() ?? "",
+      banheiros: minBathrooms?.toString() ?? "", vagas: minParking?.toString() ?? "",
+      comodidades: selectedAmenities.join(","), anunciante: ownerFilter === "todos" ? "" : ownerFilter,
+      ordem: sortOption === "relevance" ? "" : sortOption, pagina: page > 1 ? String(page) : "",
+    };
+    for (const [key, value] of Object.entries(values)) {
+      if (value) url.searchParams.set(key, value); else url.searchParams.delete(key);
+    }
     if (url.href !== window.location.href) window.history.replaceState(window.history.state, "", url);
-  }, [page, loading]);
+  }, [urlReady, loading, loadError, priceError, query, activeType, activeCategory, minPrice, maxPrice, minBedrooms, minBathrooms, minParking, selectedAmenities, ownerFilter, sortOption, page]);
+
+  if (pageState.key === "restore") {
+    setPageState({ key: filterKey, page: pageState.page });
+  } else if (pageState.key !== filterKey) {
+    setPageState({ key: filterKey, page: 1 });
+  }
 
   const goToPage = (next: number) => {
     setPageState({ key: filterKey, page: next });
@@ -311,7 +363,6 @@ export function ListingsExplorer({
   }, [listings, query]);
 
   const clearFilters = () => {
-    setQuery("");
     setActiveType(null);
     setActiveCategory("todos");
     setMinBedrooms(null);
@@ -349,7 +400,9 @@ export function ListingsExplorer({
     searchOpen && (recentSearches.length > 0 || locationSuggestions.length > 0);
 
   return (
-    <div className={`${styles.explorerContainer} ${showcase ? styles.showcaseExplorer : ""}`}>
+    <div className={`${styles.explorerContainer} ${showcase ? styles.showcaseExplorer : styles.publicExplorer}`}>
+      <div className={styles.searchControls}>
+      <div className={styles.searchPrimary}>
       {/* ── BUSCA ── */}
       <div className={styles.searchRow}>
         <div className={styles.searchBox}>
@@ -361,8 +414,12 @@ export function ListingsExplorer({
             onChange={(e) => setQuery(e.target.value)}
             onFocus={() => setSearchOpen(true)}
             onBlur={handleSearchBlur}
+            aria-expanded={showSuggestions}
+            aria-controls={showSuggestions ? suggestionsId : undefined}
             onKeyDown={(e) => {
               if (e.key === "Enter") submitSearch(query);
+              if (e.key === "Escape") setSearchOpen(false);
+              if (e.key === "ArrowDown") { e.preventDefault(); document.getElementById(suggestionsId)?.querySelector<HTMLButtonElement>("button")?.focus(); }
             }}
             aria-label="Buscar imóveis por cidade, bairro ou nome"
           />
@@ -379,7 +436,7 @@ export function ListingsExplorer({
           )}
 
           {showSuggestions && (
-            <div className={styles.suggestionsPanel} role="listbox">
+            <div id={suggestionsId} className={styles.suggestionsPanel} role="group" aria-label="Sugestões de localização" onFocus={() => { if (blurTimeout.current) clearTimeout(blurTimeout.current); }} onBlur={(event) => { if (!event.currentTarget.contains(event.relatedTarget)) setSearchOpen(false); }} onKeyDown={(event) => { if (event.key === "Escape") setSearchOpen(false); }}>
               {recentSearches.length > 0 && (
                 <div className={styles.suggestionGroup}>
                   <span className={styles.suggestionGroupLabel}>Buscas recentes</span>
@@ -414,7 +471,7 @@ export function ListingsExplorer({
               {locationSuggestions.length > 0 && (
                 <div className={styles.suggestionGroup}>
                   <span className={styles.suggestionGroupLabel}>
-                    {query ? "Localizações" : "Mais buscadas"}
+                    {query ? "Localizações" : "Locais com mais imóveis"}
                   </span>
                   {locationSuggestions.map((location) => (
                     <button
@@ -435,10 +492,8 @@ export function ListingsExplorer({
         </div>
       </div>
 
-      {/* ── FILTROS PRIMÁRIOS ── */}
-      <div className={styles.filtersBar}>
         <div className={styles.filterGroup}>
-          {showcase && <FilterChip label="Todos" active={activeCategory === "todos"} onClick={() => setActiveCategory("todos")} />}
+          <FilterChip label="Todos" active={activeCategory === "todos"} onClick={() => setActiveCategory("todos")} />
           <FilterChip
             label="Alugar"
             active={activeCategory === "aluguel"}
@@ -456,7 +511,10 @@ export function ListingsExplorer({
           />
         </div>
 
-        <span className={styles.filterSeparator} />
+      </div>
+      {/* ── FILTROS PRIMÁRIOS ── */}
+      <div className={styles.filtersBar}>
+
 
         <div className={styles.filterGroup}>
           <FilterChip
@@ -473,6 +531,12 @@ export function ListingsExplorer({
           />
         </div>
 
+        <button type="button" className={`${styles.advancedToggleBtn} ${styles.quickPrice}`} onClick={() => { setFiltersModalOpen(true); requestAnimationFrame(() => dialogRef.current?.querySelector<HTMLInputElement>('input[aria-label="Preço mínimo"]')?.focus()); }}>Preço{priceSummary ? `: ${priceSummary}${period}` : ""}</button>
+        <label className={styles.quickSelect}>Quartos
+          <select aria-label="Quantidade mínima de quartos" value={minBedrooms ?? ""} onChange={event => setMinBedrooms(event.target.value ? Number(event.target.value) : null)}>
+            <option value="">Qualquer</option>{[1, 2, 3, 4].map(n => <option key={n} value={n}>{n}+</option>)}
+          </select>
+        </label>
         <button
           type="button"
           className={`${styles.advancedToggleBtn} ${activeAdvancedCount > 0 ? styles.advancedToggleActive : ""}`}
@@ -491,10 +555,25 @@ export function ListingsExplorer({
         )}
       </div>
 
+      </div>
+      {hasActiveFilters && <div className={styles.activeFilters} aria-label="Filtros ativos">
+        {query.trim() && <button type="button" onClick={() => setQuery("")} aria-label="Remover localização">{query} <X size={14} /></button>}
+        {activeType && <button type="button" onClick={() => setActiveType(null)} aria-label="Remover tipo de imóvel">{activeType === "casa" ? "Casa" : "Apartamento"} <X size={14} /></button>}
+        {activeCategory !== "todos" && <button type="button" onClick={() => setActiveCategory("todos")} aria-label="Remover modalidade">{activeCategory === "venda" ? "Comprar" : activeCategory === "aluguel" ? "Alugar" : "Temporada"} <X size={14} /></button>}
+        {(minPrice || maxPrice) && <button type="button" onClick={() => { setMinPrice(""); setMaxPrice(""); }} aria-label="Remover faixa de preço">{priceSummary}{period} <X size={14} /></button>}
+        {minBedrooms !== null && <button type="button" onClick={() => setMinBedrooms(null)} aria-label="Remover filtro de quartos">{minBedrooms}+ quartos <X size={14} /></button>}
+        {minBathrooms !== null && <button type="button" onClick={() => setMinBathrooms(null)} aria-label="Remover filtro de banheiros">{minBathrooms}+ banheiros <X size={14} /></button>}
+        {minParking !== null && <button type="button" onClick={() => setMinParking(null)} aria-label="Remover filtro de vagas">{minParking}+ vagas <X size={14} /></button>}
+        {selectedAmenities.map(id => <button type="button" key={id} onClick={() => toggleAmenity(id)} aria-label={`Remover ${AVAILABLE_AMENITIES.find(a => a.id === id)?.label}`}>{AVAILABLE_AMENITIES.find(a => a.id === id)?.label} <X size={14} /></button>)}
+        {ownerFilter !== "todos" && <button type="button" onClick={() => setOwnerFilter("todos")} aria-label="Remover filtro de anunciante">{ownerFilter === "imobiliaria" ? "Imobiliária" : "Proprietário"} <X size={14} /></button>}
+      </div>}
+      {priceError && <p className={styles.validationError} role="alert">{priceError}</p>}
+
       {/* ── MODAL DE FILTROS AVANÇADOS (bottom sheet no mobile) ── */}
       {filtersModalOpen && (
         <div className={styles.modalOverlay} onClick={() => setFiltersModalOpen(false)}>
           <div
+            ref={dialogRef}
             className={styles.modalPanel}
             role="dialog"
             aria-modal="true"
@@ -515,10 +594,23 @@ export function ListingsExplorer({
 
             <div className={styles.modalBody}>
               <section className={styles.filterSection}>
-                <h3 className={styles.filterSectionTitle}>Preço (R$)</h3>
+                <h3 className={styles.filterSectionTitle}>Tipo de imóvel</h3>
+                <div className={styles.filterGroup}>
+                  <FilterChip label="Todos" active={activeType === null} onClick={() => setActiveType(null)} />
+                  <FilterChip label="Casa" active={activeType === "casa"} onClick={() => setActiveType(activeType === "casa" ? null : "casa")} />
+                  <FilterChip label="Apartamento" active={activeType === "apartamento"} onClick={() => setActiveType(activeType === "apartamento" ? null : "apartamento")} />
+                </div>
+              </section>
+
+              <section className={styles.filterSection}>
+                <h3 className={styles.filterSectionTitle}>Preço (R$){period}</h3>
+                {activeCategory === "todos" && <p className={styles.filterHint}>Os resultados incluem valores de venda, aluguel mensal e diárias.</p>}
                 <div className={styles.priceRow}>
                   <input
                     type="number"
+                    min="0"
+                    step="1"
+                    aria-invalid={Boolean(priceError)}
                     inputMode="numeric"
                     placeholder="Mínimo"
                     value={minPrice}
@@ -529,6 +621,9 @@ export function ListingsExplorer({
                   <span className={styles.priceDash}>até</span>
                   <input
                     type="number"
+                    min="0"
+                    step="1"
+                    aria-invalid={Boolean(priceError)}
                     inputMode="numeric"
                     placeholder="Máximo"
                     value={maxPrice}
@@ -537,6 +632,7 @@ export function ListingsExplorer({
                     aria-label="Preço máximo"
                   />
                 </div>
+                {priceError && <p className={styles.validationError} role="alert">{priceError}</p>}
               </section>
 
               <section className={styles.filterSection}>
@@ -552,6 +648,7 @@ export function ListingsExplorer({
                           key={num}
                           type="button"
                           className={`${styles.numBtn} ${minBedrooms === num ? styles.numBtnActive : ""}`}
+                          aria-pressed={minBedrooms === num}
                           onClick={() => setMinBedrooms(minBedrooms === num ? null : num)}
                         >
                           {num}+
@@ -570,6 +667,7 @@ export function ListingsExplorer({
                           key={num}
                           type="button"
                           className={`${styles.numBtn} ${minBathrooms === num ? styles.numBtnActive : ""}`}
+                          aria-pressed={minBathrooms === num}
                           onClick={() => setMinBathrooms(minBathrooms === num ? null : num)}
                         >
                           {num}+
@@ -588,6 +686,7 @@ export function ListingsExplorer({
                           key={num}
                           type="button"
                           className={`${styles.numBtn} ${minParking === num ? styles.numBtnActive : ""}`}
+                          aria-pressed={minParking === num}
                           onClick={() => setMinParking(minParking === num ? null : num)}
                         >
                           {num}+
@@ -644,20 +743,77 @@ export function ListingsExplorer({
 
             <div className={styles.modalFooter}>
               <button type="button" className={styles.modalClearBtn} onClick={clearFilters}>
-                Limpar tudo
+                Limpar todos os filtros
               </button>
               <button
                 type="button"
+                disabled={Boolean(priceError) || loading}
                 className={styles.modalApplyBtn}
                 onClick={() => setFiltersModalOpen(false)}
               >
-                Ver {filtered.length} {filtered.length === 1 ? "imóvel" : "imóveis"}
+                {loading ? "Carregando imóveis…" : `Ver ${filtered.length} ${filtered.length === 1 ? "imóvel" : "imóveis"}`}
               </button>
             </div>
           </div>
         </div>
       )}
 
+      {/* ── RESULTADOS ── */}
+      {!loadError && (
+        <div className={styles.resultsHeader} ref={resultsRef}>
+          <span className={styles.resultsCount} role="status" aria-live="polite">
+            {loading ? <span style={{ visibility: "hidden" }} aria-hidden="true">0 imóveis encontrados</span> : <>{filtered.length} {filtered.length === 1 ? "imóvel encontrado" : "imóveis encontrados"}</>}
+          </span>
+
+          <label className={styles.sortLabel}>
+            <span className={styles.sortLabelText}>Ordenar por</span>
+            <select
+              className={styles.sortSelect}
+              value={sortOption}
+              onChange={(e) => setSortOption(e.target.value as SortOption)}
+            >
+              {(Object.keys(SORT_LABELS) as SortOption[]).map((option) => (
+                <option key={option} value={option}>
+                  {SORT_LABELS[option]}
+                </option>
+              ))}
+            </select>
+          </label>
+        </div>
+      )}
+
+      {loading ? (
+        <ListingSkeletons explore={!showcase} />
+      ) : loadError ? (
+        <ErrorState message="Tente novamente em alguns instantes. Seus filtros continuam aplicados." />
+      ) : filtered.length === 0 ? (
+        <div className={styles.emptyStateContainer}>
+          <Filter size={32} className={styles.emptyIcon} />
+          <p className={styles.emptyTitle}>Nenhum imóvel encontrado</p>
+          <p className={styles.emptySubtitle}>{hasActiveFilters ? "Experimente remover um dos filtros acima para ampliar sua busca." : "Ainda não há imóveis disponíveis. Volte em breve para conferir novos anúncios."}</p>
+          {hasActiveFilters && (
+            <button type="button" className={styles.emptyResetBtn} onClick={clearFilters}>
+              Limpar filtros
+            </button>
+          )}
+        </div>
+      ) : (
+        <>
+          <div className={`${styles.grid} ${showcase ? styles.showcaseGrid : ""}`}>
+            {pageListings.map((listing, index) => (
+              <ListingCard key={listing.id} listing={listing} explore={!showcase} compactLocation={!showcase} isAdmin={isAdmin} priority={page === 1 && index < 4} />
+            ))}
+          </div>
+          <Pagination
+            page={page}
+            totalPages={totalPages}
+            totalItems={filtered.length}
+            pageSize={PAGE_SIZE}
+            itemLabel={filtered.length === 1 ? "imóvel" : "imóveis"}
+            onPageChange={goToPage}
+          />
+        </>
+      )}
       {/* ── VISTOS RECENTEMENTE ── */}
       {!hasActiveFilters && recentlyViewedListings.length > 0 && (
         <section className={styles.recentSection}>
@@ -682,62 +838,6 @@ export function ListingsExplorer({
         </section>
       )}
 
-      {/* ── RESULTADOS ── */}
-      {!loadError && (
-        <div className={styles.resultsHeader} ref={resultsRef}>
-          <span className={styles.resultsCount}>
-            {loading ? <span style={{ visibility: "hidden" }} aria-hidden="true">0 imóveis encontrados</span> : <>{filtered.length} {filtered.length === 1 ? "imóvel encontrado" : "imóveis encontrados"}</>}
-          </span>
-
-          <label className={styles.sortLabel}>
-            <span className={styles.sortLabelText}>Ordenar por</span>
-            <select
-              className={styles.sortSelect}
-              value={sortOption}
-              onChange={(e) => setSortOption(e.target.value as SortOption)}
-            >
-              {(Object.keys(SORT_LABELS) as SortOption[]).map((option) => (
-                <option key={option} value={option}>
-                  {SORT_LABELS[option]}
-                </option>
-              ))}
-            </select>
-          </label>
-        </div>
-      )}
-
-      {loading ? (
-        <ListingSkeletons />
-      ) : loadError ? (
-        <ErrorState message="Tente novamente em alguns instantes. Seus filtros continuam aplicados." />
-      ) : filtered.length === 0 ? (
-        <div className={styles.emptyStateContainer}>
-          <Filter size={32} className={styles.emptyIcon} />
-          <p className={styles.emptyTitle}>Nenhum imóvel encontrado</p>
-          <p className={styles.emptySubtitle}>Não encontramos imóveis com esses critérios.</p>
-          {hasActiveFilters && (
-            <button type="button" className={styles.emptyResetBtn} onClick={clearFilters}>
-              Limpar filtros
-            </button>
-          )}
-        </div>
-      ) : (
-        <>
-          <div className={`${styles.grid} ${showcase ? styles.showcaseGrid : ""}`}>
-            {pageListings.map((listing, index) => (
-              <ListingCard key={listing.id} listing={listing} isAdmin={isAdmin} priority={page === 1 && index < 4} />
-            ))}
-          </div>
-          <Pagination
-            page={page}
-            totalPages={totalPages}
-            totalItems={filtered.length}
-            pageSize={PAGE_SIZE}
-            itemLabel={filtered.length === 1 ? "imóvel" : "imóveis"}
-            onPageChange={goToPage}
-          />
-        </>
-      )}
     </div>
   );
 }
