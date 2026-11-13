@@ -1,17 +1,17 @@
 import Link from "next/link";
 import type { Metadata } from "next";
-import { ArrowLeft, Sparkles, Lightbulb, Camera, MapPin, Tag } from "lucide-react";
+import { ArrowLeft } from "lucide-react";
 import { requireAuth } from "@/lib/session";
 import { NewListingForm } from "@/components/listings/NewListingForm";
 import { getMyOrganization, getOrganizationBuildings } from "@/lib/organizations-api";
-import styles from "../listing-form.module.css";
+import styles from "./page.module.css";
 
 export const metadata: Metadata = { title: "Anunciar imóvel | Zhivago" };
 
 export default async function NewListingPage() {
   const { user, token } = await requireAuth("/anuncios/novo");
 
-  // Etapas 3/5 do wizard (empreendimento + atendimento/CRM) só existem pra conta de organização.
+  // Etapas de empreendimento + atendimento/CRM do assistente só existem pra conta de organização.
   const myOrg = await getMyOrganization(token);
   const buildings = myOrg ? await getOrganizationBuildings(token) : [];
 
@@ -25,54 +25,22 @@ export default async function NewListingPage() {
 
   return (
     <main className={styles.main}>
-      <div className={styles.layoutGrid}>
-        {/* Lado Esquerdo: Sidebar Fixa com Informações e Dicas */}
-        <aside className={styles.sidebar}>
-          <Link href="/dashboard" className={styles.backLink}>
-            <ArrowLeft size={16} />
-            <span>Voltar ao dashboard</span>
-          </Link>
-
-          <div className={styles.headerContent}>
-            <div className={styles.titleBadge}>
-              <Sparkles size={14} />
-              <span>Novo Anúncio</span>
-            </div>
-            <h1 className={styles.title}>Anuncie seu imóvel no Zhivago</h1>
-            <p className={styles.subtitle}>
-              Preencha os detalhes do imóvel para publicar no marketplace ou salvar como rascunho.
-            </p>
-          </div>
-
-          <div className={styles.tipsCard}>
-            <h3 className={styles.tipsTitle}>
-              <Lightbulb size={18} style={{ color: "var(--accent)" }} />
-              Dicas para um ótimo anúncio
-            </h3>
-            <div className={styles.tipItem}>
-              <Camera size={16} className={styles.tipIcon} />
-              <span>Fotos nítidas e bem iluminadas ajudam a apresentar melhor o imóvel.</span>
-            </div>
-            <div className={styles.tipItem}>
-              <MapPin size={16} className={styles.tipIcon} />
-              <span>Preencha o CEP para auto-completar a localização exata do imóvel.</span>
-            </div>
-            <div className={styles.tipItem}>
-              <Tag size={16} className={styles.tipIcon} />
-              <span>Defina um preço justo de acordo com a região para acelerar os resultados.</span>
-            </div>
-          </div>
-        </aside>
-
-        {/* Lado Direito: Formulário com Cards Amplos */}
-        <div className={styles.contentArea}>
-          <NewListingForm
-            userId={user.id}
-            myOrg={myOrg}
-            buildings={buildings.map((b) => ({ id: b.id, name: b.name, address: b.address }))}
-          />
+      <header className={styles.header}>
+        <Link href="/dashboard" className={styles.backLink}>
+          <ArrowLeft size={16} aria-hidden="true" />
+          <span>Voltar ao dashboard</span>
+        </Link>
+        <div>
+          <h1 className={styles.title}>Anuncie seu imóvel no Zhivago</h1>
+          <p className={styles.subtitle}>Preencha em poucas etapas. Você pode salvar um rascunho e continuar depois.</p>
         </div>
-      </div>
+      </header>
+
+      <NewListingForm
+        userId={user.id}
+        myOrg={myOrg}
+        buildings={buildings.map((b) => ({ id: b.id, name: b.name, address: b.address }))}
+      />
     </main>
   );
 }

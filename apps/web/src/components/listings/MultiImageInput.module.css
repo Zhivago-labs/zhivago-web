@@ -1,10 +1,13 @@
+/* Seletor de fotos do anúncio: área de soltar + grade com capa, reordenação e erros por arquivo. */
 .wrap {
-  margin-top: 4px;
+  display: grid;
+  gap: 14px;
 }
 
-.photoActions { position: absolute; bottom: 4px; left: 4px; right: 4px; display: flex; flex-wrap: wrap; gap: 3px; }
-.photoActions button { background: white; color: #222; border: 1px solid #ddd; border-radius: 4px; padding: 4px; font: inherit; font-size: 11px; cursor: pointer; }
-.wrap :focus-visible { outline: 3px solid var(--accent, #ff385c); outline-offset: 2px; }
+.wrap :focus-visible {
+  outline: 2px solid var(--brand-pink);
+  outline-offset: 2px;
+}
 
 .hiddenInput {
   position: absolute;
@@ -15,28 +18,178 @@
   pointer-events: none;
 }
 
+.dropzone {
+  display: flex;
+  flex-direction: column;
+  align-items: center;
+  justify-content: center;
+  gap: 8px;
+  width: 100%;
+  padding: 28px 20px;
+  border: 2px dashed var(--border-hover);
+  border-radius: 14px;
+  background: var(--surface-subtle);
+  color: var(--foreground);
+  cursor: pointer;
+  font: inherit;
+  text-align: center;
+  transition: border-color 0.15s ease, background 0.15s ease, transform 0.15s ease;
+}
+
+.dropzone:hover,
+.dragging {
+  border-color: var(--brand-pink);
+  background: var(--brand-pink-light);
+}
+
+.dragging {
+  transform: scale(1.01);
+}
+
+.dropzoneInvalid {
+  border-color: var(--error);
+  background: #fff1f2;
+}
+
+.dropzoneCompact {
+  flex-direction: row;
+  padding: 14px 18px;
+  text-align: left;
+}
+
+.dropIcon {
+  width: 48px;
+  height: 48px;
+  border-radius: 50%;
+  display: grid;
+  place-items: center;
+  background: var(--card-bg);
+  color: var(--brand-pink);
+  box-shadow: var(--shadow-sm);
+  flex-shrink: 0;
+}
+
+.dropzoneCompact .dropIcon {
+  width: 40px;
+  height: 40px;
+}
+
+.dropTitle {
+  display: block;
+  font-weight: 700;
+  font-size: 15px;
+}
+
+.dropHint {
+  display: block;
+  font-size: 13px;
+  color: var(--muted);
+  line-height: 1.45;
+}
+
+.statusRow {
+  display: flex;
+  justify-content: space-between;
+  gap: 12px;
+  font-size: 13px;
+  color: var(--muted);
+  font-weight: 500;
+}
+
+.statusRow strong {
+  color: var(--foreground);
+}
+
+.meter {
+  height: 4px;
+  background: var(--border);
+  border-radius: 99px;
+  overflow: hidden;
+}
+
+.meterFill {
+  height: 100%;
+  background: var(--brand-pink);
+  border-radius: 99px;
+  transition: width 0.3s ease;
+}
+
+.alert {
+  display: flex;
+  gap: 10px;
+  align-items: flex-start;
+  padding: 12px 14px;
+  border: 1px solid #fecdd3;
+  background: #fff1f2;
+  color: #9f1239;
+  border-radius: 10px;
+  font-size: 13.5px;
+  line-height: 1.45;
+  animation: thumbIn 0.2s ease;
+}
+
+.alert svg {
+  flex-shrink: 0;
+  margin-top: 1px;
+}
+
+.alert ul {
+  margin: 4px 0 0;
+  padding-left: 18px;
+}
+
+.alertTitle {
+  font-weight: 700;
+}
+
+.alertClose {
+  margin-left: auto;
+  border: 0;
+  background: transparent;
+  color: inherit;
+  cursor: pointer;
+  padding: 2px;
+  border-radius: 4px;
+  display: grid;
+  place-items: center;
+}
+
 .grid {
   display: grid;
-  grid-template-columns: repeat(auto-fill, minmax(110px, 1fr));
+  grid-template-columns: repeat(auto-fill, minmax(200px, 1fr));
   gap: 12px;
 }
 
 .thumb {
   position: relative;
   aspect-ratio: 4 / 3;
-  border-radius: 14px;
+  border-radius: 12px;
   overflow: hidden;
-  border: 2px solid var(--border);
-  box-shadow: var(--shadow-sm);
-  transition: all 0.2s cubic-bezier(0.16, 1, 0.3, 1);
-  cursor: pointer;
-  background: var(--background);
+  border: 1px solid var(--border);
+  background: var(--surface-subtle);
+  animation: thumbIn 0.25s ease;
 }
 
-.thumb:hover {
-  border-color: var(--foreground);
-  box-shadow: var(--shadow-md);
-  transform: translateY(-2px);
+.thumbCover {
+  border-color: var(--brand-pink);
+  box-shadow: 0 0 0 2px var(--brand-pink);
+}
+
+@keyframes thumbIn {
+  from {
+    opacity: 0;
+    transform: scale(0.97);
+  }
+}
+
+.thumbOpen {
+  display: block;
+  width: 100%;
+  height: 100%;
+  padding: 0;
+  border: 0;
+  background: none;
+  cursor: zoom-in;
 }
 
 .thumbImage {
@@ -48,81 +201,96 @@
 }
 
 .thumb:hover .thumbImage {
-  transform: scale(1.05);
+  transform: scale(1.04);
 }
 
-.thumbOverlay {
+.coverBadge {
   position: absolute;
-  inset: 0;
-  background: rgba(15, 23, 42, 0.45);
-  backdrop-filter: blur(2px);
+  top: 8px;
+  left: 8px;
+  background: var(--brand-pink);
   color: #ffffff;
-  display: flex;
-  flex-direction: column;
-  align-items: center;
-  justify-content: center;
-  gap: 4px;
   font-size: 11px;
-  font-weight: 600;
-  opacity: 0;
-  transition: opacity 0.2s ease;
+  font-weight: 700;
+  padding: 3px 8px;
+  border-radius: 6px;
   pointer-events: none;
-}
-
-.thumb:hover .thumbOverlay {
-  opacity: 1;
 }
 
 .removeButton {
   position: absolute;
   top: 6px;
   right: 6px;
-  width: 24px;
-  height: 24px;
+  width: 30px;
+  height: 30px;
   border-radius: 50%;
-  border: none;
-  background: rgba(15, 23, 42, 0.75);
-  color: #fff;
-  display: flex;
-  align-items: center;
-  justify-content: center;
+  border: 0;
+  background: rgba(15, 23, 42, 0.78);
+  color: #ffffff;
+  display: grid;
+  place-items: center;
   cursor: pointer;
-  transition: var(--transition);
-  z-index: 2;
+  transition: background 0.15s ease;
 }
 
 .removeButton:hover {
   background: var(--error);
-  transform: scale(1.1);
 }
 
-.addTile {
-  aspect-ratio: 4 / 3;
-  border-radius: 14px;
-  border: 2px dashed var(--border-hover);
-  background: var(--background);
+.photoActions {
+  position: absolute;
+  left: 6px;
+  right: 6px;
+  bottom: 6px;
   display: flex;
-  flex-direction: column;
+  gap: 4px;
+  justify-content: space-between;
   align-items: center;
-  justify-content: center;
-  gap: 6px;
-  color: var(--muted);
-  font-size: 12.5px;
-  font-weight: 700;
+}
+
+.photoActions button {
+  white-space: nowrap;
+  display: inline-flex;
+  align-items: center;
+  gap: 4px;
+  min-height: 30px;
+  background: rgba(255, 255, 255, 0.95);
+  color: var(--foreground);
+  border: 0;
+  border-radius: 6px;
+  padding: 4px 8px;
+  font: inherit;
+  font-size: 12px;
+  font-weight: 600;
   cursor: pointer;
-  text-align: center;
-  padding: 12px;
-  transition: all 0.2s ease;
+  box-shadow: 0 1px 3px rgba(15, 23, 42, 0.2);
 }
 
-.addTile:hover {
-  border-color: var(--accent);
-  color: var(--accent);
-  background: var(--accent-light);
-  transform: translateY(-2px);
+.photoActions button:hover {
+  background: #ffffff;
+  color: var(--brand-pink-text);
 }
 
-/* ─── LIGHTBOX MODAL ──────────────────────────────────────────────────────── */
+.moveButtons {
+  display: flex;
+  gap: 4px;
+  margin-left: auto;
+}
+
+.moveButtons button {
+  padding: 4px 6px;
+}
+
+@media (prefers-reduced-motion: reduce) {
+  .thumb,
+  .alert {
+    animation: none;
+  }
+  .thumb:hover .thumbImage,
+  .dragging {
+    transform: none;
+  }
+}
 
 .lightboxOverlay {
   position: fixed;

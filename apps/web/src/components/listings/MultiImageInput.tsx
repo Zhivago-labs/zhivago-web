@@ -1,33 +1,63 @@
 "use client";
 
-import { useId, useRef, useState, useEffect } from "react";
-import { ImagePlus, X, Maximize2, ChevronLeft, ChevronRight, Trash2 } from "lucide-react";
+import { useEffect, useId, useRef, useState } from "react";
+import { ImagePlus, X, ChevronLeft, ChevronRight, Trash2, Star, CircleAlert, ArrowLeft, ArrowRight } from "lucide-react";
 import styles from "./MultiImageInput.module.css";
+
+const MAX_FILES = 10;
+const MAX_BYTES = 20 * 1024 * 1024;
+
+const formatMb = (bytes: number) => `${(bytes / (1024 * 1024)).toFixed(1).replace(".", ",")} MB`;
 
 export function MultiImageInput({
   name = "images",
   onFilesChange,
   initialFiles,
+  error,
 }: {
   name?: string;
   onFilesChange?: (count: number, files: File[]) => void;
   initialFiles?: File[];
+  /** Erro de validação vindo do formulário (ex.: nenhuma foto ao publicar). */
+  error?: string;
 }) {
   const inputId = useId();
+  const errorId = `${inputId}-error`;
   const inputRef = useRef<HTMLInputElement>(null);
   const [files, setFiles] = useState<File[]>(initialFiles ?? []);
+  const filesRef = useRef<File[]>(initialFiles ?? []);
   const [selectedIndex, setSelectedIndex] = useState<number | null>(null);
+  const [dragging, setDragging] = useState(false);
 
   // URLs de preview para as imagens selecionadas
   const [previewUrls, setPreviewUrls] = useState<string[]>(() => (initialFiles ?? []).map(file => URL.createObjectURL(file)));
-  const [error, setError] = useState("");
+  // Problemas por arquivo (formato, tamanho, limite) — os arquivos válidos do mesmo lote entram mesmo assim.
+  const [rejections, setRejections] = useState<string[]>([]);
+
+  const writeInput = (next: File[]) => {
+    const transfer = new DataTransfer();
+    next.forEach(file => transfer.items.add(file));
+    if (inputRef.current) inputRef.current.files = transfer.files;
+  };
 
   useEffect(() => {
     if (!initialFiles) return;
-    const transfer = new DataTransfer();
-    initialFiles.forEach(file => transfer.items.add(file));
-    if (inputRef.current) inputRef.current.files = transfer.files;
+    writeInput(initialFiles);
   }, [initialFiles]);
+
+  useEffect(() => {
+    filesRef.current = files;
+  }, [files]);
+
+  // Após um erro do servidor o React reinicia o <form>, o que esvazia o <input type="file">.
+  // Reaplica as fotos escolhidas para que "Publicar" de novo envie as mesmas imagens.
+  useEffect(() => {
+    const form = inputRef.current?.form;
+    if (!form) return;
+    const onReset = () => setTimeout(() => writeInput(filesRef.current), 0);
+    form.addEventListener("reset", onReset);
+    return () => form.removeEventListener("reset", onReset);
+  }, []);
 
   useEffect(() => {
     return () => {
@@ -52,23 +82,37 @@ export function MultiImageInput({
   }, [selectedIndex, files.length]);
 
   const syncInput = (next: File[]) => {
-    const dataTransfer = new DataTransfer();
-    next.forEach((file) => dataTransfer.items.add(file));
-    if (inputRef.current) inputRef.current.files = dataTransfer.files;
+    writeInput(next);
     setFiles(next);
     setPreviewUrls(next.map(file => URL.createObjectURL(file)));
     onFilesChange?.(next.length, next);
   };
 
-  const handleChange = (event: React.ChangeEvent<HTMLInputElement>) => {
-    const picked = Array.from(event.target.files ?? []);
-    if (files.length + picked.length > 10 || picked.some(file => file.size > 20 * 1024 * 1024 || !file.type.startsWith("image/"))) {
-      setError("Selecione até 10 imagens, com no máximo 20 MB por arquivo.");
-      syncInput(files);
+  const addFiles = (picked: File[]) => {
+    if (picked.length === 0) {
+      writeInput(files);
       return;
     }
-    setError("");
-    syncInput([...files, ...picked]);
+    const problems: string[] = [];
+    const accepted: File[] = [];
+    for (const file of picked) {
+      if (!file.type.startsWith("image/")) problems.push(`${file.name}: formato não suportado. Use JPEG, PNG ou WebP.`);
+      else if (file.size > MAX_BYTES) problems.push(`${file.name}: ${formatMb(file.size)} — o máximo é 20 MB por foto.`);
+      else if (files.length + accepted.length >= MAX_FILES) problems.push(`${file.name}: limite de ${MAX_FILES} fotos atingido.`);
+      else accepted.push(file);
+    }
+    setRejections(problems);
+    syncInput([...files, ...accepted]);
+  };
+
+  const handleChange = (event: React.ChangeEvent<HTMLInputElement>) => {
+    addFiles(Array.from(event.target.files ?? []));
+  };
+
+  const handleDrop = (event: React.DragEvent) => {
+    event.preventDefault();
+    setDragging(false);
+    addFiles(Array.from(event.dataTransfer.files ?? []));
   };
 
   const handleRemove = (index: number, e?: React.MouseEvent) => {
@@ -85,69 +129,140 @@ export function MultiImageInput({
     }
   };
 
+  const move = (from: number, to: number) => {
+    const next = [...files];
+    [next[from], next[to]] = [next[to], next[from]];
+    syncInput(next);
+  };
+
+  const full = files.length >= MAX_FILES;
+
   return (
     <div className={styles.wrap}>
-      <p id="photos" tabIndex={-1}>Envie imagens (JPEG, PNG ou WebP, entre os formatos decodificados pelo servidor), até 20 MB cada e 10 fotos por anúncio. Para publicar, é necessária ao menos uma foto. A primeira será a capa. As fotos serão enviadas ao publicar.</p>
-      {error && <p role="alert">{error}</p>}
       <input
         ref={inputRef}
         id={inputId}
         name={name}
         type="file"
-        accept="image/*"
+        accept="image/jpeg,image/png,image/webp,image/*"
         multiple
         onChange={handleChange}
         className={styles.hiddenInput}
+        tabIndex={-1}
+        aria-hidden="true"
       />
 
-      <div className={styles.grid}>
-        {files.map((file, index) => (
-          <div
-            key={`${file.name}-${index}`}
-            className={styles.thumb}
-            onClick={() => setSelectedIndex(index)}
-            title="Clique para ampliar esta foto"
-            role="group"
-            aria-label={`Foto ${index + 1}: ${file.name}`}
-          >
-            {previewUrls[index] && (
-              // Local object URLs cannot be optimized by next/image.
-              // eslint-disable-next-line @next/next/no-img-element
-              <img src={previewUrls[index]} alt={file.name} className={styles.thumbImage} />
-            )}
+      <button
+        type="button"
+        id="photos"
+        onClick={() => inputRef.current?.click()}
+        onDragOver={(e) => { e.preventDefault(); if (!full) setDragging(true); }}
+        onDragLeave={() => setDragging(false)}
+        onDrop={handleDrop}
+        disabled={full}
+        aria-describedby={error ? errorId : undefined}
+        className={`${styles.dropzone} ${files.length > 0 ? styles.dropzoneCompact : ""} ${dragging ? styles.dragging : ""} ${error ? styles.dropzoneInvalid : ""}`}
+      >
+        <span className={styles.dropIcon} aria-hidden="true"><ImagePlus size={22} /></span>
+        <span>
+          <span className={styles.dropTitle}>
+            {full ? "Limite de 10 fotos atingido" : files.length > 0 ? "Adicionar mais fotos" : "Arraste as fotos aqui ou clique para escolher"}
+          </span>
+          <span className={styles.dropHint}>JPEG, PNG ou WebP · até 20 MB cada · até 10 fotos. A primeira foto é a capa do anúncio.</span>
+        </span>
+      </button>
 
-            <div className={styles.thumbOverlay}>
-              <Maximize2 size={16} />
-              <span>Ampliar</span>
-            </div>
-            <div className={styles.photoActions}>
-              <button type="button" onClick={e => { e.stopPropagation(); setSelectedIndex(index); }} aria-label={`Ampliar ${file.name}`}>Ampliar</button>
-              <button type="button" onClick={e => { e.stopPropagation(); syncInput([file, ...files.filter((_, i) => i !== index)]); }} aria-label={`Usar ${file.name} como capa`}>{index === 0 ? "Capa" : "Usar como capa"}</button>
-              {index > 0 && <button type="button" aria-label={`Mover ${file.name} para a esquerda`} onClick={e => { e.stopPropagation(); const next = [...files]; [next[index - 1], next[index]] = [next[index], next[index - 1]]; syncInput(next); }}>← Mover</button>}
-            </div>
+      {error && (
+        <p id={errorId} className={styles.alert} role="alert">
+          <CircleAlert size={16} aria-hidden="true" />
+          <span>{error}</span>
+        </p>
+      )}
 
-            <button
-              type="button"
-              className={styles.removeButton}
-              onClick={(e) => handleRemove(index, e)}
-              aria-label={`Remover ${file.name}`}
-              title="Remover foto"
-            >
-              <X size={14} />
-            </button>
+      {rejections.length > 0 && (
+        <div className={styles.alert} role="alert">
+          <CircleAlert size={16} aria-hidden="true" />
+          <div>
+            <p className={styles.alertTitle}>
+              {rejections.length === 1 ? "1 arquivo não foi adicionado" : `${rejections.length} arquivos não foram adicionados`}
+            </p>
+            <ul>{rejections.map((message) => <li key={message}>{message}</li>)}</ul>
           </div>
-        ))}
+          <button type="button" className={styles.alertClose} onClick={() => setRejections([])} aria-label="Fechar aviso">
+            <X size={16} />
+          </button>
+        </div>
+      )}
 
-        <button type="button" onClick={() => inputRef.current?.click()} className={styles.addTile}>
-          <ImagePlus size={24} />
-          <span>Adicionar fotos</span>
-        </button>
-      </div>
+      {files.length > 0 && (
+        <>
+          <div className={styles.statusRow} aria-live="polite">
+            <span><strong>{files.length} foto(s) selecionada(s)</strong> · a primeira é a capa</span>
+            <span>{files.length} de {MAX_FILES}</span>
+          </div>
+          <div className={styles.meter} aria-hidden="true">
+            <div className={styles.meterFill} style={{ width: `${(files.length / MAX_FILES) * 100}%` }} />
+          </div>
+        </>
+      )}
+
+      {files.length > 0 && (
+        <div className={styles.grid}>
+          {files.map((file, index) => (
+            <div
+              key={`${file.name}-${file.size}-${file.lastModified}-${index}`}
+              className={`${styles.thumb} ${index === 0 ? styles.thumbCover : ""}`}
+              role="group"
+              aria-label={`Foto ${index + 1}: ${file.name}${index === 0 ? " (capa)" : ""}`}
+            >
+              <button type="button" className={styles.thumbOpen} onClick={() => setSelectedIndex(index)} aria-label={`Ampliar ${file.name}`}>
+                {previewUrls[index] && (
+                  // Local object URLs cannot be optimized by next/image.
+                  // eslint-disable-next-line @next/next/no-img-element
+                  <img src={previewUrls[index]} alt="" className={styles.thumbImage} />
+                )}
+              </button>
+
+              {index === 0 && <span className={styles.coverBadge}>Capa</span>}
+
+              <div className={styles.photoActions}>
+                {index > 0 && (
+                  <button type="button" onClick={() => syncInput([file, ...files.filter((_, i) => i !== index)])} aria-label={`Usar ${file.name} como capa`}>
+                    <Star size={12} aria-hidden="true" />Usar como capa
+                  </button>
+                )}
+                <span className={styles.moveButtons}>
+                  {index > 0 && (
+                    <button type="button" aria-label={`Mover ${file.name} para a esquerda`} title="Mover para a esquerda" onClick={() => move(index, index - 1)}>
+                      <ArrowLeft size={13} />
+                    </button>
+                  )}
+                  {index < files.length - 1 && (
+                    <button type="button" aria-label={`Mover ${file.name} para a direita`} title="Mover para a direita" onClick={() => move(index, index + 1)}>
+                      <ArrowRight size={13} />
+                    </button>
+                  )}
+                </span>
+              </div>
+
+              <button
+                type="button"
+                className={styles.removeButton}
+                onClick={(e) => handleRemove(index, e)}
+                aria-label={`Remover ${file.name}`}
+                title="Remover foto"
+              >
+                <X size={14} />
+              </button>
+            </div>
+          ))}
+        </div>
+      )}
 
       {/* ── LIGHTBOX MODAL DE VISUALIZAÇÃO AMPLIADA ── */}
       {selectedIndex !== null && files[selectedIndex] && (
         <div className={styles.lightboxOverlay} onClick={() => setSelectedIndex(null)}>
-          <div className={styles.lightboxContent} onClick={(e) => e.stopPropagation()}>
+          <div className={styles.lightboxContent} onClick={(e) => e.stopPropagation()} role="dialog" aria-modal="true" aria-label={`Foto ${selectedIndex + 1} de ${files.length}`}>
             {/* Cabeçalho do modal */}
             <div className={styles.lightboxHeader}>
               <span className={styles.lightboxCounter}>
@@ -169,6 +284,7 @@ export function MultiImageInput({
                   className={styles.lightboxCloseBtn}
                   onClick={() => setSelectedIndex(null)}
                   title="Fechar (Esc)"
+                  aria-label="Fechar"
                 >
                   <X size={18} />
                 </button>
@@ -183,6 +299,7 @@ export function MultiImageInput({
                   className={`${styles.navBtn} ${styles.prevBtn}`}
                   onClick={() => setSelectedIndex(selectedIndex - 1)}
                   title="Foto anterior (Seta para esquerda)"
+                  aria-label="Foto anterior"
                 >
                   <ChevronLeft size={24} />
                 </button>
@@ -201,6 +318,7 @@ export function MultiImageInput({
                   className={`${styles.navBtn} ${styles.nextBtn}`}
                   onClick={() => setSelectedIndex(selectedIndex + 1)}
                   title="Próxima foto (Seta para direita)"
+                  aria-label="Próxima foto"
                 >
                   <ChevronRight size={24} />
                 </button>

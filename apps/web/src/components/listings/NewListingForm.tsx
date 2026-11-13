@@ -1,6 +1,6 @@
 "use client";
 
-import { useActionState, useEffect, useMemo, useRef, useState, useTransition } from "react";
+import { useActionState, useEffect, useMemo, useRef, useState, useTransition, type ComponentType, type ReactNode } from "react";
 import {
   Home,
   Building2,
@@ -27,8 +27,18 @@ import {
   ArrowLeft,
   ArrowRight,
   Eye,
-  AlertCircle,
+  CircleAlert,
+  TriangleAlert,
   MessageCircle,
+  Lightbulb,
+  LoaderCircle,
+  Wallet,
+  Pencil,
+  ChevronLeft,
+  ChevronRight,
+  ImagePlus,
+  X,
+  RotateCcw,
 } from "lucide-react";
 import { useChatSocket } from "@/components/chat/ChatSocketProvider";
 import { listingDraft } from "@/lib/listing-draft";
@@ -36,8 +46,8 @@ import type { MyOrganization } from "@/lib/organizations-api";
 import { createOrganizationBuildingAction, type CreateBuildingState } from "@/lib/actions/organizations";
 import { createListingAction } from "@/lib/actions/listings";
 import { MultiImageInput } from "./MultiImageInput";
-import { AmenitiesSelector } from "./AmenitiesSelector";
-import styles from "./ListingForm.module.css";
+import { AmenitiesSelector, AVAILABLE_AMENITIES } from "./AmenitiesSelector";
+import styles from "./NewListingForm.module.css";
 
 interface ViaCepResponse {
   erro?: boolean;
@@ -49,6 +59,9 @@ interface ViaCepResponse {
 
 type Modality = "diaria" | "mensal" | "venda";
 export type BuildingOption = { id: string; name: string; address: string | null };
+type Icon = ComponentType<{ size?: number; className?: string; "aria-hidden"?: boolean | "true" }>;
+type Issue = { field: string; message: string };
+type CepStatus = "idle" | "loading" | "found" | "notfound" | "error";
 
 const GUARANTEE_OPTIONS = [
   { value: "CAUCAO", label: "Caução" },
@@ -56,15 +69,187 @@ const GUARANTEE_OPTIONS = [
   { value: "FIADOR", label: "Fiador" },
 ] as const;
 
-const ALL_STEPS = [
-  { id: 1, title: "Tipo & Objetivo", subtitle: "Defina a modalidade e o tipo do imóvel" },
-  { id: 2, title: "Sobre o Imóvel", subtitle: "Área, cômodos e comodidades" },
-  { id: 3, title: "Localização", subtitle: "Endereço completo e empreendimento" },
-  { id: 4, title: "Condições", subtitle: "Preço e condições específicas da modalidade" },
+const CANCELLATION_LABELS = { FLEXIBLE: "Flexível", MODERATE: "Moderada", STRICT: "Rigorosa" } as const;
+
+const ALL_STEPS: { id: number; title: string; subtitle: string; lead: string; tip: string; icon: Icon; orgOnly?: boolean }[] = [
+  {
+    id: 1, title: "Tipo e objetivo", subtitle: "Modalidade, tipo e título", icon: Tag,
+    lead: "Conte o que você quer fazer com o imóvel e dê um título a ele.",
+    tip: "Um bom título cita o tipo, o principal diferencial e o bairro. Ex.: “Apartamento com varanda gourmet no Gonzaga”.",
+  },
+  {
+    id: 2, title: "Sobre o imóvel", subtitle: "Cômodos, área e comodidades", icon: Sparkles,
+    lead: "Informe a estrutura do imóvel e o que ele oferece.",
+    tip: "Marque só as comodidades que você confirmou. Informações exatas evitam frustração e contatos perdidos.",
+  },
+  {
+    id: 3, title: "Localização", subtitle: "Endereço do imóvel", icon: MapPin,
+    lead: "Digite o CEP e completamos o endereço para você.",
+    tip: "Na busca aparecem apenas bairro e cidade. Rua e número ficam visíveis só na página do anúncio.",
+  },
+  {
+    id: 4, title: "Preço e condições", subtitle: "Valores e regras", icon: Wallet,
+    lead: "Defina o valor e as condições da modalidade escolhida.",
+    tip: "Compare com imóveis parecidos na região. Um preço coerente com o mercado acelera os contatos.",
+  },
   // Só existe pra conta de organização (imobiliária) — seção 72 da spec.
-  { id: 5, title: "Atendimento/CRM", subtitle: "Quem recebe os leads deste imóvel", orgOnly: true },
-  { id: 6, title: "Fotos & Revisão", subtitle: "Inclua fotos e publique" },
+  {
+    id: 5, title: "Atendimento", subtitle: "Quem recebe os leads", icon: Users, orgOnly: true,
+    lead: "Escolha quem atende os interessados neste imóvel.",
+    tip: "Sem um responsável específico, os leads seguem as regras de distribuição da imobiliária.",
+  },
+  {
+    id: 6, title: "Fotos", subtitle: "Imagens e capa", icon: Camera,
+    lead: "Adicione as fotos do imóvel e escolha a capa.",
+    tip: "Prefira fotos horizontais, claras e bem iluminadas. Comece pela fachada ou pelo ambiente mais bonito.",
+  },
+  {
+    id: 7, title: "Revisão", subtitle: "Prévia e publicação", icon: Eye,
+    lead: "Revise antes de publicar: é assim que os interessados verão o seu anúncio.",
+    tip: "Toque em “Editar” em qualquer bloco para corrigir algo sem perder o que já foi preenchido.",
+  },
 ];
+
+const MODALITY_BADGE: Record<Modality, string> = { diaria: "Temporada", mensal: "Aluguel", venda: "Venda" };
+const PERIOD: Record<Modality, string> = { diaria: "/noite", mensal: "/mês", venda: "" };
+const AMENITY_LABELS = new Map(AVAILABLE_AMENITIES.map((a) => [a.id, a.label]));
+
+const formatBRL = (value: string | number, fraction = 2) =>
+  Number(value).toLocaleString("pt-BR", { style: "currency", currency: "BRL", minimumFractionDigits: 0, maximumFractionDigits: fraction });
+const formatCep = (value: string) => {
+  const digits = value.replace(/\D/g, "").slice(0, 8);
+  return digits.length > 5 ? `${digits.slice(0, 5)}-${digits.slice(5)}` : digits;
+};
+const plural = (n: number, one: string, many: string) => `${n} ${n === 1 ? one : many}`;
+
+/* ───────────────────────── Peças de interface ───────────────────────── */
+
+function FieldError({ id, message }: { id: string; message?: string }) {
+  if (!message) return null;
+  return (
+    <p id={id} className={styles.fieldError}>
+      <CircleAlert size={14} aria-hidden="true" />
+      <span>{message}</span>
+    </p>
+  );
+}
+
+function Field({ id, label, required, optional, hint, error, aside, children }: {
+  id: string; label: string; required?: boolean; optional?: boolean; hint?: ReactNode; error?: string; aside?: ReactNode; children: ReactNode;
+}) {
+  return (
+    <div className={styles.field}>
+      <div className={styles.labelRow}>
+        <label className={styles.label} htmlFor={id}>
+          {label}
+          {required && <span className={styles.required} aria-hidden="true"> *</span>}
+          {optional && <span className={styles.optional}> (opcional)</span>}
+        </label>
+        {aside}
+      </div>
+      {children}
+      {hint && !error && <p id={`${id}-hint`} className={styles.hint}>{hint}</p>}
+      <FieldError id={`${id}-error`} message={error} />
+    </div>
+  );
+}
+
+/** Atributos de acessibilidade de um campo conforme o erro atual. */
+const describe = (id: string, error?: string, hasHint = false) => ({
+  "aria-invalid": error ? true : undefined,
+  "aria-describedby": error ? `${id}-error` : hasHint ? `${id}-hint` : undefined,
+});
+
+function Card({ icon: CardIcon, title, subtitle, children }: { icon: Icon; title: string; subtitle?: string; children: ReactNode }) {
+  return (
+    <section className={styles.card}>
+      <div className={styles.cardHead}>
+        <span className={styles.cardIcon}><CardIcon size={20} aria-hidden="true" /></span>
+        <div>
+          <h3 className={styles.cardTitle}>{title}</h3>
+          {subtitle && <p className={styles.cardSub}>{subtitle}</p>}
+        </div>
+      </div>
+      {children}
+    </section>
+  );
+}
+
+function ChoiceCard({ active, onClick, icon: ChoiceIcon, title, subtitle, row, disabled }: {
+  active: boolean; onClick: () => void; icon?: Icon; title: string; subtitle?: string; row?: boolean; disabled?: boolean;
+}) {
+  return (
+    <button
+      type="button"
+      aria-pressed={active}
+      disabled={disabled}
+      onClick={onClick}
+      className={`${styles.choice} ${row ? styles.choiceRow : ""} ${active ? styles.choiceActive : ""}`}
+    >
+      {ChoiceIcon && <span className={styles.choiceIcon}><ChoiceIcon size={20} aria-hidden="true" /></span>}
+      <span className={styles.choiceText}>
+        <span className={styles.choiceTitle} data-choice-title="">{title}</span>
+        {subtitle && <span className={styles.choiceSubtitle}>{subtitle}</span>}
+      </span>
+      <span className={styles.choiceCheck} aria-hidden="true">{active && <Check size={12} strokeWidth={3} />}</span>
+    </button>
+  );
+}
+
+function CounterRow({ icon: RowIcon, title, subtitle, value, onChange }: {
+  icon: Icon; title: string; subtitle: string; value: number; onChange: (next: number) => void;
+}) {
+  const noun = title.toLowerCase();
+  return (
+    <div className={styles.counterRow}>
+      <div className={styles.counterInfo}>
+        <RowIcon size={20} aria-hidden="true" />
+        <div>
+          <p className={styles.counterTitle}>{title}</p>
+          <p className={styles.counterSub}>{subtitle}</p>
+        </div>
+      </div>
+      <div className={styles.counter}>
+        <button type="button" className={styles.counterBtn} onClick={() => onChange(Math.max(0, value - 1))} disabled={value <= 0} aria-label={`Diminuir ${noun}`}>
+          <Minus size={16} />
+        </button>
+        <output className={styles.counterValue} aria-live="polite" aria-label={`${value} ${noun}`}>{value}</output>
+        <button type="button" className={styles.counterBtn} onClick={() => onChange(value + 1)} aria-label={`Aumentar ${noun}`}>
+          <Plus size={16} />
+        </button>
+      </div>
+    </div>
+  );
+}
+
+function Toggle({ checked, onChange, label, description }: { checked: boolean; onChange: (next: boolean) => void; label: string; description?: string }) {
+  return (
+    <label className={`${styles.toggle} ${checked ? styles.toggleOn : ""}`}>
+      <input type="checkbox" className={styles.toggleInput} checked={checked} onChange={(e) => onChange(e.target.checked)} />
+      <span className={styles.switch} aria-hidden="true" />
+      <span className={styles.toggleText}>
+        <span className={styles.toggleLabel}>{label}</span>
+        {description && <span className={styles.toggleDesc}>{description}</span>}
+      </span>
+    </label>
+  );
+}
+
+function YesNo({ id, label, value, onChange, invalid }: { id: string; label: string; value: boolean | null; onChange: (next: boolean) => void; invalid: boolean }) {
+  return (
+    <div className={`${styles.yesNo} ${invalid ? styles.yesNoInvalid : ""}`} role="radiogroup" aria-labelledby={`${id}-label`} aria-invalid={invalid || undefined}>
+      <span id={`${id}-label`} className={styles.yesNoLabel}>{label}</span>
+      <span className={styles.segmented}>
+        {([true, false] as const).map((option) => (
+          <label key={String(option)} className={value === option ? styles.segOn : ""}>
+            <input type="radio" name={`ui-${id}`} checked={value === option} onChange={() => onChange(option)} />
+            {option ? "Possui" : "Não possui"}
+          </label>
+        ))}
+      </span>
+    </div>
+  );
+}
 
 /** Mini-formulário "+ Novo empreendimento" (seção 63 da spec) — cria sem sair do wizard. */
 function NewBuildingInlineForm({ onCreated, onCancel }: { onCreated: (b: BuildingOption) => void; onCancel: () => void }) {
@@ -82,46 +267,46 @@ function NewBuildingInlineForm({ onCreated, onCancel }: { onCreated: (b: Buildin
       else setState(result);
     });
   };
+  const error = state && "error" in state ? state.error : undefined;
 
   return (
-    <div ref={inlineRef} className={styles.row} style={{ marginTop: "12px", alignItems: "flex-end" }}>
-      <div>
-        <label className={styles.label} htmlFor="newBuildingName">
-          <span>Nome do empreendimento</span>
-        </label>
-        <input id="newBuildingName" name="name" type="text" placeholder="Ex: Unique Tower" required className={styles.input} />
+    <div ref={inlineRef} className={styles.fields} style={{ marginTop: 16 }}>
+      <div className={styles.grid2}>
+        <Field id="newBuildingName" label="Nome do empreendimento" required error={error}>
+          <input id="newBuildingName" name="name" type="text" placeholder="Ex.: Unique Tower" className={styles.input} {...describe("newBuildingName", error)} />
+        </Field>
+        <Field id="newBuildingAddress" label="Endereço" optional>
+          <input id="newBuildingAddress" name="address" type="text" className={styles.input} />
+        </Field>
       </div>
-      <div>
-        <label className={styles.label} htmlFor="newBuildingAddress">
-          <span>Endereço (opcional)</span>
-        </label>
-        <input id="newBuildingAddress" name="address" type="text" className={styles.input} />
-      </div>
-      <div style={{ display: "flex", gap: "8px" }}>
-        <button type="button" onClick={createBuilding} className={styles.secondaryButton} disabled={pending}>
-          {pending ? "Criando…" : "Criar"}
+      <div style={{ display: "flex", gap: 8 }}>
+        <button type="button" onClick={createBuilding} className={`${styles.btnPrimary} ${styles.btnSmall}`} disabled={pending}>
+          {pending ? <LoaderCircle size={16} className={styles.spin} aria-hidden="true" /> : <Plus size={16} aria-hidden="true" />}
+          {pending ? "Criando…" : "Criar empreendimento"}
         </button>
-        <button type="button" className={styles.secondaryButton} onClick={onCancel}>
-          Cancelar
-        </button>
+        <button type="button" className={`${styles.btnSecondary} ${styles.btnSmall}`} onClick={onCancel}>Cancelar</button>
       </div>
-      {state && "error" in state && <p className={styles.error}>{state.error}</p>}
     </div>
   );
 }
+
+/* ───────────────────────── Formulário ───────────────────────── */
 
 export function NewListingForm({ myOrg, buildings, userId }: { myOrg: MyOrganization | null; buildings: BuildingOption[]; userId: string }) {
   const [state, formAction, pending] = useActionState(createListingAction, undefined);
   const { openSidebar, unreadCount } = useChatSocket();
 
+  // A barra de ações é fixa; o formulário reserva espaço igual à altura dela para nada ficar escondido.
   const footerRef = useRef<HTMLDivElement>(null);
-  useEffect(() => {
-    if (!footerRef.current) return;
-    const observer = new ResizeObserver(([entry]) => document.documentElement.style.setProperty("--listing-actions-height", (String(entry.borderBoxSize[0]?.blockSize ?? entry.contentRect.height) + "px")));
-    observer.observe(footerRef.current);
-    return () => { observer.disconnect(); document.documentElement.style.removeProperty("--listing-actions-height"); };
-  }, []);
   const formRef = useRef<HTMLFormElement>(null);
+  useEffect(() => {
+    if (!footerRef.current || !formRef.current) return;
+    const form = formRef.current;
+    const observer = new ResizeObserver(([entry]) => form.style.setProperty("--wizard-footer-h", `${entry.borderBoxSize[0]?.blockSize ?? entry.contentRect.height}px`));
+    observer.observe(footerRef.current);
+    return () => observer.disconnect();
+  }, []);
+
   const [draftMessage, setDraftMessage] = useState("");
   const [draftAvailable, setDraftAvailable] = useState(false);
   const [draftFiles, setDraftFiles] = useState<File[]>([]);
@@ -137,7 +322,12 @@ export function NewListingForm({ myOrg, buildings, userId }: { myOrg: MyOrganiza
     updateCurrentStep(next);
     setVisitedSteps(previous => previous.includes(next) ? previous : [...previous, next]);
   };
-  const [stepError, setStepError] = useState<string | null>(null);
+  // Erros aparecem quando a pessoa tenta avançar/publicar (etapa "tentada") ou sai de um campo
+  // (campo "tocado"); a partir daí somem sozinhos assim que o dado fica válido.
+  const [attemptedSteps, setAttemptedSteps] = useState<number[]>([]);
+  const [touched, setTouched] = useState<string[]>([]);
+  const touch = (field: string) => setTouched(previous => previous.includes(field) ? previous : [...previous, field]);
+  const markAttempted = (step: number) => setAttemptedSteps(previous => previous.includes(step) ? previous : [...previous, step]);
 
   // Estados dos seletores
   const [type, setType] = useState<"casa" | "apartamento">("casa");
@@ -148,8 +338,7 @@ export function NewListingForm({ myOrg, buildings, userId }: { myOrg: MyOrganiza
 
   const isOrg = !!myOrg;
 
-  // Só aparece "Regras & Segurança" clássica pra quem é aluguel por diária; a etapa 5 (CRM) só
-  // existe pra conta de organização.
+  // A etapa 5 (Atendimento/CRM) só existe pra conta de organização.
   const steps = useMemo(
     () => ALL_STEPS.filter((step) => !(step.orgOnly && !isOrg)),
     [isOrg]
@@ -216,7 +405,8 @@ export function NewListingForm({ myOrg, buildings, userId }: { myOrg: MyOrganiza
   const [bairro, setBairro] = useState("");
   const [cidade, setCidade] = useState("");
   const [uf, setUf] = useState("");
-  const [loadingCep, setLoadingCep] = useState(false);
+  const [cepStatus, setCepStatus] = useState<CepStatus>("idle");
+  const lastCepLookup = useRef("");
 
   // Empreendimento + Atendimento/CRM (seção 8/63/72 — só organização)
   const [buildingOptions, setBuildingOptions] = useState<BuildingOption[]>(buildings);
@@ -229,9 +419,23 @@ export function NewListingForm({ myOrg, buildings, userId }: { myOrg: MyOrganiza
     () => (myOrg?.organization.members ?? []).filter((m) => m.status === "ACTIVE"),
     [myOrg]
   );
+  const canPickAgent = !myOrg || ["OWNER", "ADMIN"].includes(myOrg.role);
 
   const visibleAmenities = amenities.filter(id => !["pet_friendly", "estacionamento", "cameras"].includes(id) && (modality === "diaria" || isFurnished || !["wifi", "tv", "cafeteira", "maquina_lavar", "cozinha"].includes(id)));
   const [imageCount, setImageCount] = useState(0);
+
+  // Fotos para a prévia: URLs locais (blob:) das imagens escolhidas, na ordem atual (a 1ª é a capa).
+  const [photos, setPhotos] = useState<{ file: File; url: string }[]>([]);
+  const photoUrlsRef = useRef<string[]>([]);
+  const [previewIndex, setPreviewIndex] = useState(0);
+  const updatePhotos = (files: File[]) => {
+    photoUrlsRef.current.forEach(url => URL.revokeObjectURL(url));
+    const next = files.map(file => ({ file, url: URL.createObjectURL(file) }));
+    photoUrlsRef.current = next.map(photo => photo.url);
+    setPhotos(next);
+    setPreviewIndex(0);
+  };
+  useEffect(() => () => photoUrlsRef.current.forEach(url => URL.revokeObjectURL(url)), []);
 
   const snapshot = () => ({ structureConfirmed, currentStep, type, modality, name, description, bedrooms, suites, bathrooms, parking, privateArea, totalArea, amenities, checkInTime, checkOutTime, customMaxGuests, minimumNights, cleaningFee, allowPetsDaily, allowSmoking, allowParties, quietHours, customNotes, externalCameras, smokeAlarm, fireExtinguisher, doorman24h, firstAidKit, cancellationPolicy, condoFee, iptuAnnual, acceptsFinancing, acceptsExchange, iptuMonthly, availableFrom, minimumLeaseMonths, guaranteeTypes, isFurnished, allowPetsMonthly, price, acceptsNegotiation, minNegotiablePrice, cep, logradouro, numero, complemento, bairro, cidade, uf, buildingId, hasSpecificAgent, assignedAgentId, assumeBuildingLeads, files: filesRef.current });
   type DraftSnapshot = ReturnType<typeof snapshot>;
@@ -299,29 +503,34 @@ export function NewListingForm({ myOrg, buildings, userId }: { myOrg: MyOrganiza
       setHasSpecificAgent(draft.hasSpecificAgent);
       setAssignedAgentId(draft.assignedAgentId);
       setAssumeBuildingLeads(draft.assumeBuildingLeads);
-      filesRef.current = draft.files; setDraftFiles(draft.files); setImageCount(draft.files.length);
+      filesRef.current = draft.files; setDraftFiles(draft.files); setImageCount(draft.files.length); updatePhotos(draft.files);
       setDraftRevision(previous => previous + 1);
+      setDraftAvailable(false);
       setDraftMessage("Rascunho recuperado. Revise os dados antes de publicar.");
     } catch { setDraftMessage("Não foi possível recuperar o rascunho."); }
   };
 
-  const handleCepBlur = async () => {
-    const cleanCep = cep.replace(/\D/g, "");
-    if (cleanCep.length !== 8) return;
-    setLoadingCep(true);
+  // Consulta o ViaCEP assim que o CEP tem 8 dígitos (e de novo ao sair do campo, se mudou).
+  const lookupCep = async (value: string) => {
+    const cleanCep = value.replace(/\D/g, "");
+    if (cleanCep.length !== 8 || cleanCep === lastCepLookup.current) return;
+    lastCepLookup.current = cleanCep;
+    setCepStatus("loading");
     try {
       const res = await fetch(`https://viacep.com.br/ws/${cleanCep}/json/`);
       const data: ViaCepResponse = await res.json();
-      if (!data.erro) {
-        setLogradouro(data.logradouro ?? "");
-        setBairro(data.bairro ?? "");
-        setCidade(data.localidade ?? "");
-        setUf(data.uf ?? "");
+      if (lastCepLookup.current !== cleanCep) return; // a pessoa já digitou outro CEP
+      if (data.erro) {
+        setCepStatus("notfound");
+        return;
       }
+      setLogradouro(data.logradouro ?? "");
+      setBairro(data.bairro ?? "");
+      setCidade(data.localidade ?? "");
+      setUf(data.uf ?? "");
+      setCepStatus("found");
     } catch {
-      // Falha silenciosa
-    } finally {
-      setLoadingCep(false);
+      if (lastCepLookup.current === cleanCep) setCepStatus("error");
     }
   };
 
@@ -333,9 +542,12 @@ export function NewListingForm({ myOrg, buildings, userId }: { myOrg: MyOrganiza
   const rawIndex = steps.findIndex((step) => step.id === currentStep);
   const stepIndex = rawIndex === -1 ? steps.length - 1 : rawIndex;
   const activeStep = steps[stepIndex].id;
+  const activeMeta = steps[stepIndex];
   const isLastStep = stepIndex === steps.length - 1;
+  const photosStep = 6;
+  const reviewStep = steps[steps.length - 1].id;
 
-  const issuesForStep = (step: number): { field: string; message: string }[] => {
+  const issuesForStep = (step: number): Issue[] => {
     if (step === 1) return !name.trim() ? [{ field: "name", message: "Informe o título do imóvel." }] : [];
     if (step === 2) return [
       ...(!structureConfirmed ? [{ field: "structureConfirmed", message: "Confirme as quantidades de cômodos e vagas, inclusive quando forem zero." }] : []),
@@ -348,40 +560,55 @@ export function NewListingForm({ myOrg, buildings, userId }: { myOrg: MyOrganiza
     ];
     if (step === 4) return [
       ...(!(Number(price) > 0 && Number.isFinite(Number(price))) ? [{ field: "price", message: "Informe um preço maior que zero." }] : []),
-      ...(modality === "diaria" && [externalCameras, smokeAlarm, fireExtinguisher, doorman24h, firstAidKit].some(v => v === null) ? [{ field: "safety", message: "Informe se o imóvel possui cada item de segurança." }] : []),
       ...(modality === "diaria" && (!Number.isInteger(customMaxGuests) || customMaxGuests < 1) ? [{ field: "customMaxGuests", message: "Informe a capacidade de hóspedes." }] : []),
       ...(modality === "diaria" && (!Number.isInteger(Number(minimumNights)) || Number(minimumNights) < 1) ? [{ field: "minimumNights", message: "Informe a estadia mínima em noites." }] : []),
-      ...((modality === "diaria" ? [cleaningFee] : modality === "venda" ? [condoFee, iptuAnnual] : [condoFee, iptuMonthly]).some(value => value !== "" && (!Number.isFinite(Number(value)) || Number(value) < 0)) ? [{ field: "price", message: "Encargos devem ter valores não negativos." }] : []),
+      ...((modality === "diaria" ? [cleaningFee] : modality === "venda" ? [condoFee, iptuAnnual] : [condoFee, iptuMonthly]).some(value => value !== "" && (!Number.isFinite(Number(value)) || Number(value) < 0)) ? [{ field: "charges", message: "Encargos devem ter valores não negativos." }] : []),
+      ...(modality === "diaria" && [externalCameras, smokeAlarm, fireExtinguisher, doorman24h, firstAidKit].some(v => v === null) ? [{ field: "safety", message: "Informe se o imóvel possui cada item de segurança." }] : []),
     ];
-    if (step === 6) return imageCount === 0 ? [{ field: "photos", message: "Adicione ao menos uma foto." }] : [];
+    if (step === photosStep) return imageCount === 0 ? [{ field: "photos", message: "Adicione ao menos uma foto." }] : [];
     return [];
   };
   const pendingIssues = steps.flatMap(step => issuesForStep(step.id).map(issue => ({ ...issue, step: step.id })));
-  const showErrors = (step: number) => {
-    const issues = issuesForStep(step);
-    if (!issues.length) return false;
-    setStepError(issues[0].message);
-    requestAnimationFrame(() => document.getElementById(issues[0].field)?.focus());
-    return true;
+  const currentIssues = issuesForStep(activeStep);
+  const showStepErrors = attemptedSteps.includes(activeStep);
+  /** Mensagem a exibir para um campo da etapa atual (só depois de tentar avançar ou sair do campo). */
+  const errorFor = (field: string) => {
+    const issue = currentIssues.find(i => i.field === field);
+    return issue && (showStepErrors || touched.includes(field)) ? issue.message : undefined;
   };
+
+  const focusField = (field: string) => {
+    requestAnimationFrame(() => {
+      const el = document.getElementById(field);
+      if (!el) return;
+      el.focus({ preventScroll: true });
+      el.scrollIntoView({ behavior: "smooth", block: "center" });
+    });
+  };
+
+  const goTo = (step: number) => {
+    setCurrentStep(step);
+    window.scrollTo({ top: 0, behavior: "smooth" });
+  };
+
   const validateAndNext = () => {
-    setStepError(null);
-    if (showErrors(activeStep)) return;
-    if (!isLastStep) {
-      setCurrentStep(steps[stepIndex + 1].id);
-      window.scrollTo({ top: 0, behavior: "smooth" });
+    if (currentIssues.length) {
+      markAttempted(activeStep);
+      focusField(currentIssues[0].field);
+      return;
     }
+    if (!isLastStep) goTo(steps[stepIndex + 1].id);
   };
 
   const handlePrev = () => {
-    setStepError(null);
-    if (stepIndex > 0) {
-      setCurrentStep(steps[stepIndex - 1].id);
-      window.scrollTo({ top: 0, behavior: "smooth" });
-    }
+    if (stepIndex > 0) goTo(steps[stepIndex - 1].id);
   };
 
-  const progressPercent = Math.round(((stepIndex + 1) / steps.length) * 100);
+  const jumpToIssue = (issue: Issue & { step: number }) => {
+    markAttempted(issue.step);
+    setCurrentStep(issue.step);
+    focusField(issue.field);
+  };
 
   const handleSubmit = (event: React.FormEvent<HTMLFormElement>) => {
     const submitter = (event.nativeEvent as SubmitEvent).submitter as HTMLButtonElement | null;
@@ -394,17 +621,57 @@ export function NewListingForm({ myOrg, buildings, userId }: { myOrg: MyOrganiza
     }
     if (pendingIssues.length) {
       event.preventDefault();
-      setCurrentStep(pendingIssues[0].step);
-      setStepError(pendingIssues[0].message);
-      requestAnimationFrame(() => document.getElementById(pendingIssues[0].field)?.focus());
+      jumpToIssue(pendingIssues[0]);
     }
   };
 
+  // Erro devolvido pelo servidor ao publicar: aviso em destaque, com foco, até a pessoa fechar.
+  const [dismissedState, setDismissedState] = useState<typeof state>(undefined);
+  const serverError = state?.error && dismissedState !== state ? state.error : null;
+  const serverErrorIsPhoto = !!serverError && /imag|foto|arquivo/i.test(serverError);
+  const serverErrorRef = useRef<HTMLDivElement>(null);
+  useEffect(() => {
+    if (state?.error) requestAnimationFrame(() => serverErrorRef.current?.focus());
+  }, [state]);
+
+  // Situação de cada etapa para a trilha e a barra de progresso.
+  const stepStatus = (step: number) => {
+    const issues = issuesForStep(step);
+    if (issues.length && attemptedSteps.includes(step)) return { kind: "error" as const, count: issues.length };
+    if (!issues.length && visitedSteps.includes(step) && step !== activeStep) return { kind: "done" as const, count: 0 };
+    return { kind: step === activeStep ? ("current" as const) : ("todo" as const), count: issues.length };
+  };
+
+  const priceLabel = Number(price) > 0 ? formatBRL(price) : null;
+  const locationLabel = bairro && cidade ? `${bairro}, ${cidade}${uf ? ` - ${uf}` : ""}` : cidade ? `${cidade}${uf ? ` - ${uf}` : ""}` : null;
+  const cover = photos[0]?.url;
+  const shownPhoto = photos[Math.min(previewIndex, Math.max(photos.length - 1, 0))];
+
+  const cepError = errorFor("cep");
+  const cepHint =
+    cepStatus === "loading" ? <span className={`${styles.status} ${styles.statusLoading}`}><LoaderCircle size={14} className={styles.spin} aria-hidden="true" />Buscando endereço…</span>
+    : cepStatus === "found" ? <span className={`${styles.status} ${styles.statusOk}`}><CheckCircle2 size={14} aria-hidden="true" />Endereço encontrado. Confira os dados abaixo.</span>
+    : cepStatus === "notfound" ? <span className={`${styles.status} ${styles.statusWarn}`}><TriangleAlert size={14} aria-hidden="true" />CEP não encontrado. Confira o número ou preencha o endereço manualmente.</span>
+    : cepStatus === "error" ? <span className={`${styles.status} ${styles.statusWarn}`}><TriangleAlert size={14} aria-hidden="true" />Não foi possível consultar o CEP agora. Preencha o endereço manualmente.</span>
+    : "Digite os 8 números — rua, bairro, cidade e UF são preenchidos automaticamente.";
+
+  const safetyItems: { id: string; label: string; value: boolean | null; set: (v: boolean) => void }[] = [
+    { id: "externalCameras", label: "Câmeras externas", value: externalCameras, set: setExternalCameras },
+    { id: "smokeAlarm", label: "Alarme de fumaça", value: smokeAlarm, set: setSmokeAlarm },
+    { id: "fireExtinguisher", label: "Extintor de incêndio", value: fireExtinguisher, set: setFireExtinguisher },
+    { id: "doorman24h", label: "Portaria 24h", value: doorman24h, set: setDoorman24h },
+    { id: "firstAidKit", label: "Kit de primeiros socorros", value: firstAidKit, set: setFirstAidKit },
+  ];
+  const safetyError = errorFor("safety");
+
+  const moneyInput = ({ id, label, value, onChange, suffix }: { id: string; label: string; value: string; onChange: (v: string) => void; suffix?: string }) => (
+    <Field id={id} label={label} optional hint={value && Number(value) >= 0 ? `${formatBRL(value)}${suffix ?? ""}` : undefined}>
+      <input id={id} type="number" inputMode="decimal" min="0" step="0.01" placeholder="0,00" value={value} onChange={(e) => onChange(e.target.value)} className={styles.input} />
+    </Field>
+  );
+
   return (
     <form ref={formRef} noValidate action={formAction} onSubmit={handleSubmit} className={styles.form} aria-busy={pending || savingDraft}>
-      {pending && <p role="status">Enviando fotos e dados do imóvel. Aguarde a confirmação.</p>}
-      {draftAvailable && <button type="button" className={styles.secondaryButton} onClick={restoreDraft}>Recuperar rascunho deste navegador</button>}
-      <p>O rascunho fica salvo neste navegador e nesta conta. Salve antes de sair.</p>
       {/* Campos ocultos mantidos para envio total ao Server Action */}
       <input type="hidden" name="structureConfirmed" value={String(structureConfirmed)} />
       <input type="hidden" name="category" value={category} />
@@ -462,1187 +729,677 @@ export function NewListingForm({ myOrg, buildings, userId }: { myOrg: MyOrganiza
       <input type="hidden" name="uf" value={uf} />
       <input type="hidden" name="amenities" value={JSON.stringify(amenities)} />
 
-      {/* ── CABEÇALHO DO WIZARD COM BARRA DE PROGRESSO & STEPPER ── */}
-      <div className={styles.wizardHeaderCard}>
-        <div className={styles.wizardTopRow}>
-          <span className={styles.stepBadge}>
-            Etapa {stepIndex + 1} de {steps.length}
-          </span>
-          <span className={styles.progressPercentText}>Posição no formulário</span>
-        </div>
-
-        <div className={styles.progressBarBg}>
-          <div className={styles.progressBarFill} style={{ width: `${progressPercent}%` }} />
-        </div>
-
-        <div className={styles.stepperTabs}>
+      {/* ── TRILHA DE ETAPAS + PRÉVIA AO VIVO (desktop) ── */}
+      <aside className={styles.rail} aria-label="Etapas do anúncio">
+        <ol className={styles.stepList}>
           {steps.map((step, index) => {
-            const isDone = issuesForStep(step.id).length === 0;
-            const isActive = activeStep === step.id;
+            const status = stepStatus(step.id);
+            const isActive = step.id === activeStep;
             return (
-              <button
-                key={step.id}
-                aria-current={isActive ? "step" : undefined}
-                aria-label={`${index + 1}. ${step.title}: ${isDone ? "requisitos atendidos" : visitedSteps.includes(step.id) ? "visitada, incompleta" : "não visitada, incompleta"}`}
-                type="button"
-                className={`${styles.stepperTab} ${isActive ? styles.stepperTabActive : ""} ${
-                  isDone ? styles.stepperTabDone : ""
-                }`}
-                onClick={() => {
-                  setStepError(null);
-                  setCurrentStep(step.id);
-                }}
-              >
-                <span className={styles.stepperDot}>{isDone ? <Check size={12} /> : index + 1}</span>
-                <span className={styles.stepperTabTitle}>{step.title}</span>
-              </button>
-            );
-          })}
-        </div>
-      </div>
-
-      {stepError && (
-        <div className={styles.stepErrorAlert} role="alert">
-          <AlertCircle size={18} />
-          <span>{stepError}</span>
-        </div>
-      )}
-
-      {/* ── ETAPA 1: TIPO & OBJETIVO ── */}
-      {activeStep === 1 && (
-        <div className={styles.stepContent}>
-          <section className={styles.section}>
-            <div className={styles.sectionHeader}>
-              <div className={styles.sectionIconWrap}>
-                <Tag size={22} />
-              </div>
-              <div>
-                <h2 className={styles.sectionTitle}>O que você quer fazer?</h2>
-                <p className={styles.sectionSubtitle}>A modalidade define o restante do formulário. Ao mudar, as escolhas ficam guardadas durante o preenchimento; somente os campos aplicáveis à modalidade atual serão enviados.</p>
-              </div>
-            </div>
-
-            <div className={styles.optionGrid}>
-              <button
-                type="button"
-                className={`${styles.optionCard} ${modality === "diaria" ? styles.optionCardActive : ""}`}
-                aria-pressed={modality === "diaria"}
-                onClick={() => setModality("diaria")}
-              >
-                <div className={styles.optionCardHeader}>
-                  <Calendar size={26} className={styles.optionCardIcon} />
-                  {modality === "diaria" && (
-                    <span className={styles.optionCardCheck}>
-                      <Check size={12} />
-                    </span>
-                  )}
-                </div>
-                <p className={styles.optionCardTitle}>Aluguel por Diária</p>
-                <p className={styles.optionCardSubtitle}>Hospedagens curtas e temporada cobradas por noite</p>
-              </button>
-
-              <button
-                type="button"
-                className={`${styles.optionCard} ${modality === "mensal" ? styles.optionCardActive : ""}`}
-                aria-pressed={modality === "mensal"}
-                onClick={() => setModality("mensal")}
-              >
-                <div className={styles.optionCardHeader}>
-                  <CalendarDays size={26} className={styles.optionCardIcon} />
-                  {modality === "mensal" && (
-                    <span className={styles.optionCardCheck}>
-                      <Check size={12} />
-                    </span>
-                  )}
-                </div>
-                <p className={styles.optionCardTitle}>Aluguel Mensal</p>
-                <p className={styles.optionCardSubtitle}>Contrato de locação estendido com cobrança mensal</p>
-              </button>
-
-              <button
-                type="button"
-                className={`${styles.optionCard} ${modality === "venda" ? styles.optionCardActive : ""}`}
-                aria-pressed={modality === "venda"}
-                onClick={() => setModality("venda")}
-              >
-                <div className={styles.optionCardHeader}>
-                  <KeyRound size={26} className={styles.optionCardIcon} />
-                  {modality === "venda" && (
-                    <span className={styles.optionCardCheck}>
-                      <Check size={12} />
-                    </span>
-                  )}
-                </div>
-                <p className={styles.optionCardTitle}>Venda do Imóvel</p>
-                <p className={styles.optionCardSubtitle}>Comercialização direta para compradores interessados</p>
-              </button>
-            </div>
-          </section>
-
-          <section className={styles.section}>
-            <div className={styles.sectionHeader}>
-              <div className={styles.sectionIconWrap}>
-                <Home size={22} />
-              </div>
-              <div>
-                <h2 className={styles.sectionTitle}>Qual o tipo do seu imóvel?</h2>
-                <p className={styles.sectionSubtitle}>Selecione a categoria que melhor descreve seu imóvel</p>
-              </div>
-            </div>
-
-            <div className={styles.optionGrid}>
-              <button
-                type="button"
-                className={`${styles.optionCard} ${type === "casa" ? styles.optionCardActive : ""}`}
-                aria-pressed={type === "casa"}
-                onClick={() => setType("casa")}
-              >
-                <div className={styles.optionCardHeader}>
-                  <Home size={26} className={styles.optionCardIcon} />
-                  {type === "casa" && (
-                    <span className={styles.optionCardCheck}>
-                      <Check size={12} />
-                    </span>
-                  )}
-                </div>
-                <p className={styles.optionCardTitle}>Casa</p>
-                <p className={styles.optionCardSubtitle}>Residências térreas, sobrados e casas de condomínio</p>
-              </button>
-
-              <button
-                type="button"
-                className={`${styles.optionCard} ${type === "apartamento" ? styles.optionCardActive : ""}`}
-                aria-pressed={type === "apartamento"}
-                onClick={() => setType("apartamento")}
-              >
-                <div className={styles.optionCardHeader}>
-                  <Building2 size={26} className={styles.optionCardIcon} />
-                  {type === "apartamento" && (
-                    <span className={styles.optionCardCheck}>
-                      <Check size={12} />
-                    </span>
-                  )}
-                </div>
-                <p className={styles.optionCardTitle}>Apartamento</p>
-                <p className={styles.optionCardSubtitle}>Flats, studios, coberturas e apartamentos residenciais</p>
-              </button>
-            </div>
-          </section>
-
-          <section className={styles.section}>
-            <div className={styles.sectionHeader}>
-              <div className={styles.sectionIconWrap}>
-                <FileText size={22} />
-              </div>
-              <div>
-                <h2 className={styles.sectionTitle}>Título e descrição do imóvel</h2>
-                <p className={styles.sectionSubtitle}>Destaque os principais diferenciais que tornam seu imóvel único</p>
-              </div>
-            </div>
-
-            <label className={styles.label} htmlFor="name">
-              <span>Título do anúncio *</span>
-            </label>
-            <input
-              id="name"
-              aria-invalid={!!stepError && issuesForStep(activeStep).some(i => i.field === "name")}
-              aria-describedby={stepError ? "name-error" : undefined}
-              type="text"
-              placeholder="Ex: Loft Aconchegante com Varanda Gourmet e Vista para o Mar"
-              required
-              value={name}
-              onChange={(e) => setName(e.target.value)}
-              className={styles.input}
-            />
-            {stepError && issuesForStep(activeStep).filter(i => i.field === "name").map(i => <p id="name-error" key={i.field} className={styles.error}>{i.message}</p>)}
-
-            <label className={styles.label} htmlFor="description">
-              <span>Descrição detalhada</span>
-            </label>
-            <textarea
-              id="description"
-              rows={6}
-              placeholder="Descreva a atmosfera do local, comodidades próximas, facilidade de acesso e destaques..."
-              value={description}
-              onChange={(e) => setDescription(e.target.value)}
-              className={styles.textarea}
-            />
-          </section>
-        </div>
-      )}
-
-      {/* ── ETAPA 2: SOBRE O IMÓVEL ── */}
-      {activeStep === 2 && (
-        <div className={styles.stepContent}>
-          <section className={styles.section}>
-            <div className={styles.sectionHeader}>
-              <div className={styles.sectionIconWrap}>
-                <Sparkles size={22} />
-              </div>
-              <div>
-                <h2 className={styles.sectionTitle}>Capacidade & Estrutura</h2>
-                <p className={styles.sectionSubtitle}>Ajuste cômodos, área e comodidades disponíveis</p>
-              </div>
-            </div>
-
-            <div className={styles.row}>
-              <div>
-                <label className={styles.label} htmlFor="privateArea">
-                  <span>Área privativa (m²)</span>
-                </label>
-                <input
-                  id="privateArea"
-                  type="number"
-                  min="0"
-                  step="0.01"
-                  placeholder="Ex: 68"
-                  value={privateArea}
-                  onChange={(e) => setPrivateArea(e.target.value)}
-                  className={styles.input}
-                />
-              </div>
-              <div>
-                <label className={styles.label} htmlFor="totalArea">
-                  <span>Área total (m²)</span>
-                </label>
-                <input
-                  id="totalArea"
-                  type="number"
-                  min="0"
-                  step="0.01"
-                  placeholder="Ex: 75"
-                  value={totalArea}
-                  onChange={(e) => setTotalArea(e.target.value)}
-                  className={styles.input}
-                />
-              </div>
-            </div>
-
-            <div className={styles.airbnbSteppersList} style={{ marginTop: "16px" }}>
-              <div className={styles.airbnbRow}>
-                <div className={styles.airbnbRowLeft}>
-                  <div className={styles.airbnbRowIcon}>
-                    <BedDouble size={22} />
-                  </div>
-                  <div>
-                    <p className={styles.airbnbRowTitle}>Quartos</p>
-                    <p className={styles.airbnbRowSubtitle}>Quantos quartos possui o imóvel?</p>
-                  </div>
-                </div>
-                <div className={styles.airbnbStepper}>
-                  <button
-                    type="button"
-                    className={styles.airbnbCircleBtn}
-                    onClick={() => { setStructureConfirmed(false); setBedrooms(Math.max(0, bedrooms - 1)); }}
-                    disabled={bedrooms <= 0}
-                    aria-label="Diminuir quartos"
-                  >
-                    <Minus size={14} />
-                  </button>
-                  <span className={styles.airbnbValue}>{bedrooms}</span>
-                  <button
-                    type="button"
-                    className={styles.airbnbCircleBtn}
-                    onClick={() => { setStructureConfirmed(false); setBedrooms(bedrooms + 1); }}
-                    aria-label="Aumentar quartos"
-                  >
-                    <Plus size={14} />
-                  </button>
-                </div>
-              </div>
-
-              <div className={styles.airbnbRow}>
-                <div className={styles.airbnbRowLeft}>
-                  <div className={styles.airbnbRowIcon}>
-                    <DoorClosed size={22} />
-                  </div>
-                  <div>
-                    <p className={styles.airbnbRowTitle}>Suítes</p>
-                    <p className={styles.airbnbRowSubtitle}>Quantas suítes possui o imóvel?</p>
-                  </div>
-                </div>
-                <div className={styles.airbnbStepper}>
-                  <button
-                    type="button"
-                    className={styles.airbnbCircleBtn}
-                    onClick={() => { setStructureConfirmed(false); setSuites(Math.max(0, suites - 1)); }}
-                    disabled={suites <= 0}
-                    aria-label="Diminuir suítes"
-                  >
-                    <Minus size={14} />
-                  </button>
-                  <span className={styles.airbnbValue}>{suites}</span>
-                  <button
-                    type="button"
-                    className={styles.airbnbCircleBtn}
-                    onClick={() => { setStructureConfirmed(false); setSuites(suites + 1); }}
-                    aria-label="Aumentar suítes"
-                  >
-                    <Plus size={14} />
-                  </button>
-                </div>
-              </div>
-
-              <div className={styles.airbnbRow}>
-                <div className={styles.airbnbRowLeft}>
-                  <div className={styles.airbnbRowIcon}>
-                    <Bath size={22} />
-                  </div>
-                  <div>
-                    <p className={styles.airbnbRowTitle}>Banheiros</p>
-                    <p className={styles.airbnbRowSubtitle}>Quantidade de banheiros</p>
-                  </div>
-                </div>
-                <div className={styles.airbnbStepper}>
-                  <button
-                    type="button"
-                    className={styles.airbnbCircleBtn}
-                    onClick={() => { setStructureConfirmed(false); setBathrooms(Math.max(0, bathrooms - 1)); }}
-                    disabled={bathrooms <= 0}
-                    aria-label="Diminuir banheiros"
-                  >
-                    <Minus size={14} />
-                  </button>
-                  <span className={styles.airbnbValue}>{bathrooms}</span>
-                  <button
-                    type="button"
-                    className={styles.airbnbCircleBtn}
-                    onClick={() => { setStructureConfirmed(false); setBathrooms(bathrooms + 1); }}
-                    aria-label="Aumentar banheiros"
-                  >
-                    <Plus size={14} />
-                  </button>
-                </div>
-              </div>
-
-              <div className={styles.airbnbRow}>
-                <div className={styles.airbnbRowLeft}>
-                  <div className={styles.airbnbRowIcon}>
-                    <Car size={22} />
-                  </div>
-                  <div>
-                    <p className={styles.airbnbRowTitle}>Vagas de garagem</p>
-                    <p className={styles.airbnbRowSubtitle}>Quantidade de vagas de garagem</p>
-                  </div>
-                </div>
-                <div className={styles.airbnbStepper}>
-                  <button
-                    type="button"
-                    className={styles.airbnbCircleBtn}
-                    onClick={() => { setStructureConfirmed(false); setParking(Math.max(0, parking - 1)); }}
-                    disabled={parking <= 0}
-                    aria-label="Diminuir vagas de garagem"
-                  >
-                    <Minus size={14} />
-                  </button>
-                  <span className={styles.airbnbValue}>{parking}</span>
-                  <button
-                    type="button"
-                    className={styles.airbnbCircleBtn}
-                    onClick={() => { setStructureConfirmed(false); setParking(parking + 1); }}
-                    aria-label="Aumentar vagas de garagem"
-                  >
-                    <Plus size={14} />
-                  </button>
-                </div>
-              </div>
-            </div>
-
-            <div style={{ marginTop: "24px", paddingTop: "24px", borderTop: "1px solid var(--border)" }}>
-              <label className={styles.toggleItem}><input id="structureConfirmed" type="checkbox" checked={structureConfirmed} aria-invalid={!!stepError && !structureConfirmed} aria-describedby={stepError && !structureConfirmed ? "structure-error" : undefined} onChange={e => setStructureConfirmed(e.target.checked)} />Confirmo as quantidades de quartos, suítes, banheiros e vagas informadas acima.</label>
-              {stepError && !structureConfirmed && <p id="structure-error" className={styles.error}>Confirme as quantidades de cômodos e vagas, inclusive quando forem zero.</p>}
-              <label className={styles.toggleItem}><input type="checkbox" checked={isFurnished} onChange={e => setIsFurnished(e.target.checked)} />Mobiliado — selecione para informar equipamentos incluídos</label>
-              <AmenitiesSelector value={amenities} onChange={setAmenities} modality={modality} furnished={isFurnished} />
-            </div>
-          </section>
-        </div>
-      )}
-
-      {/* ── ETAPA 3: LOCALIZAÇÃO ── */}
-      {activeStep === 3 && (
-        <div className={styles.stepContent}>
-          <section className={styles.section}>
-            <div className={styles.sectionHeader}>
-              <div className={styles.sectionIconWrap}>
-                <MapPin size={22} />
-              </div>
-              <div>
-                <h2 className={styles.sectionTitle}>Onde fica o seu imóvel?</h2>
-                <p className={styles.sectionSubtitle}>Insira o CEP para preenchimento automático da localização</p>
-              </div>
-            </div>
-
-            <label className={styles.label} htmlFor="cep">
-              <span>CEP * {loadingCep ? "(Buscando endereço…)" : ""}</span>
-            </label>
-            <input
-              id="cep"
-              aria-invalid={!!stepError && issuesForStep(activeStep).some(i => i.field === "cep")}
-              aria-describedby={stepError ? "cep-error" : undefined}
-              type="text"
-              placeholder="00000-000"
-              maxLength={9}
-              required
-              value={cep}
-              onChange={(e) => setCep(e.target.value)}
-              onBlur={handleCepBlur}
-              className={styles.input}
-            />
-            {stepError && issuesForStep(activeStep).filter(i => i.field === "cep").map(i => <p id="cep-error" key={i.field} className={styles.error}>{i.message}</p>)}
-
-            <div className={styles.row} style={{ marginTop: "16px" }}>
-              <div style={{ gridColumn: "span 2" }}>
-                <label className={styles.label} htmlFor="logradouro">
-                  <span>Logradouro / Rua</span>
-                </label>
-                <input
-                  id="logradouro"
-                  type="text"
-                  placeholder="Rua, Avenida, Alameda..."
-                  value={logradouro}
-                  onChange={(e) => setLogradouro(e.target.value)}
-                  className={styles.input}
-                />
-              </div>
-              <div>
-                <label className={styles.label} htmlFor="numero">
-                  <span>Número</span>
-                </label>
-                <input
-                  id="numero"
-                  type="text"
-                  placeholder="123 ou S/N"
-                  value={numero}
-                  onChange={(e) => setNumero(e.target.value)}
-                  className={styles.input}
-                />
-              </div>
-            </div>
-
-            <div className={styles.row} style={{ marginTop: "16px" }}>
-              <div>
-                <label className={styles.label} htmlFor="complemento">
-                  <span>Complemento</span>
-                </label>
-                <input
-                  id="complemento"
-                  type="text"
-                  placeholder="Apto, bloco, casa..."
-                  value={complemento}
-                  onChange={(e) => setComplemento(e.target.value)}
-                  className={styles.input}
-                />
-              </div>
-              <div>
-                <label className={styles.label} htmlFor="bairro">
-                  <span>Bairro</span>
-                </label>
-                <input
-                  id="bairro"
-                  type="text"
-                  placeholder="Nome do bairro"
-                  value={bairro}
-                  onChange={(e) => setBairro(e.target.value)}
-                  className={styles.input}
-                />
-              </div>
-            </div>
-
-            <div className={styles.row} style={{ marginTop: "16px" }}>
-              <div>
-                <label className={styles.label} htmlFor="cidade">
-                  <span>Cidade *</span>
-                </label>
-                <input
-                  id="cidade"
-              aria-invalid={!!stepError && issuesForStep(activeStep).some(i => i.field === "cidade")}
-              aria-describedby={stepError ? "cidade-error" : undefined}
-                  type="text"
-                  placeholder="Nome da cidade"
-                  required
-                  value={cidade}
-                  onChange={(e) => setCidade(e.target.value)}
-                  className={styles.input}
-                />
-            {stepError && issuesForStep(activeStep).filter(i => i.field === "cidade").map(i => <p id="cidade-error" key={i.field} className={styles.error}>{i.message}</p>)}
-              </div>
-              <div>
-                <label className={styles.label} htmlFor="uf">
-                  <span>UF (Estado) *</span>
-                </label>
-                <input
-                  id="uf"
-              aria-invalid={!!stepError && issuesForStep(activeStep).some(i => i.field === "uf")}
-              aria-describedby={stepError ? "uf-error" : undefined}
-                  type="text"
-                  maxLength={2}
-                  placeholder="SP"
-                  required
-                  value={uf}
-                  onChange={(e) => setUf(e.target.value.toUpperCase())}
-                  className={styles.input}
-                />
-            {stepError && issuesForStep(activeStep).filter(i => i.field === "uf").map(i => <p id="uf-error" key={i.field} className={styles.error}>{i.message}</p>)}
-              </div>
-            </div>
-          </section>
-
-          {isOrg && (
-            <section className={styles.section}>
-              <div className={styles.sectionHeader}>
-                <div className={styles.sectionIconWrap}>
-                  <Building2 size={22} />
-                </div>
-                <div>
-                  <h2 className={styles.sectionTitle}>Empreendimento</h2>
-                  <p className={styles.sectionSubtitle}>Vincule este imóvel a um empreendimento já cadastrado, se houver</p>
-                </div>
-              </div>
-
-              <label className={styles.label} htmlFor="buildingSelect">
-                <span>Empreendimento (opcional)</span>
-              </label>
-              <select
-                id="buildingSelect"
-                value={buildingId}
-                onChange={(e) => setBuildingId(e.target.value)}
-                className={styles.input}
-              >
-                <option value="">Nenhum</option>
-                {buildingOptions.map((b) => (
-                  <option key={b.id} value={b.id}>
-                    {b.name}
-                  </option>
-                ))}
-              </select>
-
-              {!showNewBuildingForm ? (
+              <li key={step.id}>
                 <button
                   type="button"
-                  className={styles.secondaryButton}
-                  style={{ marginTop: "12px" }}
-                  onClick={() => setShowNewBuildingForm(true)}
+                  aria-current={isActive ? "step" : undefined}
+                  aria-label={`${index + 1}. ${step.title}: ${status.kind === "error" ? `${status.count} pendência(s)` : issuesForStep(step.id).length === 0 ? "requisitos atendidos" : visitedSteps.includes(step.id) ? "visitada, incompleta" : "não visitada, incompleta"}`}
+                  className={`${styles.stepperTab} ${isActive ? styles.stepActive : ""} ${status.kind === "done" ? styles.stepDone : ""} ${status.kind === "error" ? styles.stepError : ""}`}
+                  onClick={() => goTo(step.id)}
                 >
-                  <Plus size={16} />
-                  <span>Novo empreendimento</span>
-                </button>
-              ) : (
-                <NewBuildingInlineForm
-                  onCreated={(b) => {
-                    setBuildingOptions((prev) => [...prev, b]);
-                    setBuildingId(b.id);
-                    setShowNewBuildingForm(false);
-                  }}
-                  onCancel={() => setShowNewBuildingForm(false)}
-                />
-              )}
-            </section>
-          )}
-        </div>
-      )}
-
-      {/* ── ETAPA 4: CONDIÇÕES (por modalidade) ── */}
-      {activeStep === 4 && (
-        <div className={styles.stepContent}>
-          <section className={styles.section}>
-            <div className={styles.sectionHeader}>
-              <div className={styles.sectionIconWrap}>
-                <Tag size={22} />
-              </div>
-              <div>
-                <h2 className={styles.sectionTitle}>
-                  {modality === "diaria" ? "Preço por noite" : modality === "mensal" ? "Preço mensal" : "Preço de venda"}
-                </h2>
-                <p className={styles.sectionSubtitle}>
-                  {modality === "diaria"
-                    ? "Valor cobrado por noite de hospedagem"
-                    : modality === "mensal"
-                    ? "Valor do aluguel cobrado mensalmente"
-                    : "Valor total de venda do imóvel"}
-                </p>
-              </div>
-            </div>
-
-            <div className={styles.airbnbPriceHero}>
-              <span className={styles.airbnbPriceSymbol}>R$</span>
-              <input
-                id="price"
-                aria-label={modality === "diaria" ? "Diária em reais" : modality === "mensal" ? "Aluguel mensal em reais" : "Preço de venda em reais"}
-              aria-invalid={!!stepError && issuesForStep(activeStep).some(i => i.field === "price")}
-              aria-describedby={stepError ? "price-error" : undefined}
-                type="number"
-                min="0"
-                step="0.01"
-                placeholder="0"
-                required
-                value={price}
-                onChange={(e) => setPrice(e.target.value)}
-                className={styles.airbnbPriceInput}
-              />
-            {stepError && issuesForStep(activeStep).filter(i => i.field === "price").map(i => <p id="price-error" key={i.field} className={styles.error}>{i.message}</p>)}
-            </div>
-
-            <div className={styles.toggleGrid} style={{ marginTop: "16px" }}>
-              <label className={styles.toggleItem}>
-                <input
-                  type="checkbox"
-                  checked={acceptsNegotiation}
-                  onChange={(e) => setAcceptsNegotiation(e.target.checked)}
-                />
-                <span>Aceita negociação de valor pelo chat</span>
-              </label>
-            </div>
-            {acceptsNegotiation && (
-              <div style={{ marginTop: "12px" }}>
-                <label className={styles.label} htmlFor="minNegotiablePrice">
-                  <span>
-                    Valor mínimo aceito (R${modality === "diaria" ? " por noite" : modality === "mensal" ? "/mês" : ""}) — opcional
+                  <span className={styles.stepDot} aria-hidden="true">
+                    {status.kind === "done" ? <Check size={14} strokeWidth={3} /> : status.kind === "error" ? "!" : index + 1}
                   </span>
-                </label>
-                <input
-                  id="minNegotiablePrice"
-                  type="number"
-                  min="0"
-                  step="0.01"
-                  value={minNegotiablePrice}
-                  onChange={(e) => setMinNegotiablePrice(e.target.value)}
-                  className={styles.input}
-                />
-                <p className={styles.sectionSubtitle}>
-                  Nunca aparece para o cliente. Propostas abaixo dele são recusadas automaticamente.
-                </p>
-              </div>
-            )}
-          </section>
+                  <span className={styles.stepText}>
+                    <span className={styles.stepName}>{step.title}</span>
+                    <span className={styles.stepInfo}>{status.kind === "error" ? (status.count === 1 ? "1 item a corrigir" : `${status.count} itens a corrigir`) : step.subtitle}</span>
+                  </span>
+                </button>
+              </li>
+            );
+          })}
+        </ol>
 
-          {/* ── VENDA (seção 66) ── */}
-          {modality === "venda" && (
-            <section className={styles.section}>
-              <div className={styles.sectionHeader}>
-                <div className={styles.sectionIconWrap}>
-                  <Ruler size={22} />
-                </div>
-                <div>
-                  <h2 className={styles.sectionTitle}>Condições da venda</h2>
-                  <p className={styles.sectionSubtitle}>Condomínio, IPTU, financiamento e permuta</p>
-                </div>
-              </div>
+        {activeStep !== reviewStep && (
+          <div className={styles.mini} aria-label="Prévia rápida do anúncio">
+            <p className={styles.miniLabel}><Eye size={14} aria-hidden="true" />Prévia ao vivo</p>
+            <div className={`${styles.miniCover} ${cover ? styles.miniCoverFilled : ""}`}>
+              {/* Local object URLs cannot be optimized by next/image. */}
+              {/* eslint-disable-next-line @next/next/no-img-element */}
+              {cover ? <img src={cover} alt="" /> : <span>A capa aparece aqui<br />quando você adicionar fotos</span>}
+              <span className={styles.badge}>{MODALITY_BADGE[modality]}</span>
+            </div>
+            <div className={styles.miniBody}>
+              <p className={styles.miniPrice}>{priceLabel ? <>{priceLabel}<small> {PERIOD[modality]}</small></> : <span className={styles.placeholder}>R$ —</span>}</p>
+              <p className={styles.miniLoc}>{locationLabel ?? <span className={styles.placeholder}>Bairro, cidade</span>}</p>
+              <p className={styles.miniTitle}>{name.trim() || <span className={styles.placeholder}>Título do anúncio</span>}</p>
+            </div>
+          </div>
+        )}
 
-              <div className={styles.row}>
-                <div>
-                  <label className={styles.label} htmlFor="condoFeeSale">
-                    <span>Condomínio (R$/mês)</span>
-                  </label>
+        <p className={styles.railNote}>O rascunho fica salvo neste navegador e nesta conta. Salve antes de sair.</p>
+      </aside>
+
+      <div className={styles.content}>
+        {/* ── CABEÇALHO DA ETAPA ── */}
+        <header className={styles.stepHead}>
+          <p className={styles.eyebrow}>Etapa {stepIndex + 1} de {steps.length}</p>
+          <h2 className={styles.stepHeading}>{activeMeta.title}</h2>
+          <p className={styles.stepLead}>{activeMeta.lead}</p>
+          <div className={styles.progress} aria-hidden="true">
+            {steps.map((step) => {
+              const status = stepStatus(step.id);
+              return <span key={step.id} className={`${styles.progressSeg} ${status.kind === "done" ? styles.segDone : status.kind === "error" ? styles.segError : status.kind === "current" ? styles.segCurrent : ""}`} />;
+            })}
+          </div>
+        </header>
+
+        {draftAvailable && (
+          <div className={styles.banner}>
+            <RotateCcw size={18} aria-hidden="true" />
+            <span className={styles.bannerText}>Você tem um rascunho salvo neste navegador.</span>
+            <button type="button" className={`${styles.btnSecondary} ${styles.btnSmall}`} onClick={restoreDraft}>Recuperar rascunho deste navegador</button>
+          </div>
+        )}
+
+        {serverError && (
+          <div ref={serverErrorRef} tabIndex={-1} className={styles.serverError} role="alert">
+            <TriangleAlert size={20} aria-hidden="true" />
+            <div className={styles.serverErrorBody}>
+              <p className={styles.serverErrorTitle}>Não foi possível publicar o anúncio</p>
+              <p>{serverError}</p>
+              <p className={styles.serverErrorHelp}>
+                Seus dados e fotos continuam aqui. {serverErrorIsPhoto ? "Revise as fotos e tente publicar de novo." : "Confira as informações e tente publicar de novo."}
+              </p>
+              {serverErrorIsPhoto && activeStep !== photosStep && (
+                <div className={styles.serverErrorActions}>
+                  <button type="button" className={`${styles.btnSecondary} ${styles.btnSmall}`} onClick={() => goTo(photosStep)}>
+                    <Camera size={16} aria-hidden="true" />Revisar fotos
+                  </button>
+                </div>
+              )}
+            </div>
+            <button type="button" className={styles.iconClose} onClick={() => setDismissedState(state)} aria-label="Fechar aviso">
+              <X size={18} />
+            </button>
+          </div>
+        )}
+
+        {showStepErrors && currentIssues.length > 0 && (
+          <div className={styles.summary} role="alert">
+            <CircleAlert size={20} aria-hidden="true" />
+            <div>
+              <p className={styles.summaryTitle}>
+                {currentIssues.length === 1 ? "Falta 1 item para continuar" : `Faltam ${currentIssues.length} itens para continuar`}
+              </p>
+              <ul className={styles.summaryList}>
+                {currentIssues.map((issue) => (
+                  <li key={issue.field + issue.message}>
+                    <button type="button" className={styles.linkButton} onClick={() => focusField(issue.field)}>{issue.message}</button>
+                  </li>
+                ))}
+              </ul>
+            </div>
+          </div>
+        )}
+
+        {activeStep !== reviewStep && (
+          <p className={styles.tip}><Lightbulb size={16} aria-hidden="true" /><span>{activeMeta.tip}</span></p>
+        )}
+
+        {/* ── ETAPA 1: TIPO & OBJETIVO ── */}
+        {activeStep === 1 && (
+          <div key="step-1" className={styles.stepEnter}>
+            <Card icon={Tag} title="O que você quer fazer?" subtitle="A modalidade define o restante do formulário. Se mudar depois, suas respostas ficam guardadas; só o que vale para a modalidade escolhida é enviado.">
+              <div className={styles.choices}>
+                <ChoiceCard active={modality === "diaria"} onClick={() => setModality("diaria")} icon={Calendar} title="Aluguel por Diária" subtitle="Hospedagens curtas e temporada, cobradas por noite" />
+                <ChoiceCard active={modality === "mensal"} onClick={() => setModality("mensal")} icon={CalendarDays} title="Aluguel Mensal" subtitle="Contrato de locação com cobrança mensal" />
+                <ChoiceCard active={modality === "venda"} onClick={() => setModality("venda")} icon={KeyRound} title="Venda do Imóvel" subtitle="Negociação direta com compradores interessados" />
+              </div>
+            </Card>
+
+            <Card icon={Home} title="Qual o tipo do seu imóvel?">
+              <div className={styles.choices}>
+                <ChoiceCard row active={type === "casa"} onClick={() => setType("casa")} icon={Home} title="Casa" subtitle="Térrea, sobrado ou casa de condomínio" />
+                <ChoiceCard row active={type === "apartamento"} onClick={() => setType("apartamento")} icon={Building2} title="Apartamento" subtitle="Flat, studio, cobertura ou apartamento" />
+              </div>
+            </Card>
+
+            <Card icon={FileText} title="Título e descrição" subtitle="Destaque o que torna seu imóvel único.">
+              <div className={styles.fields}>
+                <Field id="name" label="Título do anúncio" required error={errorFor("name")} aside={<span className={styles.counterText}>{name.length} caracteres</span>}>
                   <input
-                    id="condoFeeSale"
-                    type="number"
-                    min="0"
-                    step="0.01"
-                    value={condoFee}
-                    onChange={(e) => setCondoFee(e.target.value)}
+                    id="name"
+                    type="text"
+                    placeholder="Ex.: Loft aconchegante com varanda gourmet e vista para o mar"
+                    value={name}
+                    onChange={(e) => setName(e.target.value)}
+                    onBlur={() => touch("name")}
                     className={styles.input}
+                    {...describe("name", errorFor("name"))}
                   />
-                </div>
-                <div>
-                  <label className={styles.label} htmlFor="iptuAnnual">
-                    <span>IPTU (R$/ano)</span>
-                  </label>
-                  <input
-                    id="iptuAnnual"
-                    type="number"
-                    min="0"
-                    step="0.01"
-                    value={iptuAnnual}
-                    onChange={(e) => setIptuAnnual(e.target.value)}
-                    className={styles.input}
+                </Field>
+                <Field id="description" label="Descrição detalhada" optional aside={<span className={styles.counterText}>{description.length} caracteres</span>} hint="Fale do ambiente, da vizinhança, do acesso e dos diferenciais.">
+                  <textarea
+                    id="description"
+                    rows={6}
+                    placeholder="Descreva a atmosfera do local, comodidades próximas, facilidade de acesso e destaques…"
+                    value={description}
+                    onChange={(e) => setDescription(e.target.value)}
+                    className={styles.textarea}
+                    {...describe("description", undefined, true)}
                   />
-                </div>
+                </Field>
               </div>
+            </Card>
+          </div>
+        )}
 
-              <div className={styles.toggleGrid} style={{ marginTop: "16px" }}>
-                <label className={styles.toggleItem}>
-                  <input type="checkbox" checked={acceptsFinancing} onChange={(e) => setAcceptsFinancing(e.target.checked)} />
-                  <span>Aceita financiamento</span>
-                </label>
-                <label className={styles.toggleItem}>
-                  <input type="checkbox" checked={acceptsExchange} onChange={(e) => setAcceptsExchange(e.target.checked)} />
-                  <span>Aceita permuta</span>
-                </label>
-              </div>
-            </section>
-          )}
-
-          {/* ── ALUGUEL MENSAL (seção 67) ── */}
-          {modality === "mensal" && (
-            <section className={styles.section}>
-              <div className={styles.sectionHeader}>
-                <div className={styles.sectionIconWrap}>
-                  <CalendarDays size={22} />
-                </div>
-                <div>
-                  <h2 className={styles.sectionTitle}>Condições do aluguel mensal</h2>
-                  <p className={styles.sectionSubtitle}>Condomínio, IPTU, disponibilidade e garantias</p>
-                </div>
-              </div>
-
-              <div className={styles.row}>
-                <div>
-                  <label className={styles.label} htmlFor="condoFeeMonthly">
-                    <span>Condomínio (R$/mês)</span>
-                  </label>
-                  <input
-                    id="condoFeeMonthly"
-                    type="number"
-                    min="0"
-                    step="0.01"
-                    value={condoFee}
-                    onChange={(e) => setCondoFee(e.target.value)}
-                    className={styles.input}
-                  />
-                </div>
-                <div>
-                  <label className={styles.label} htmlFor="iptuMonthly">
-                    <span>IPTU (R$/mês)</span>
-                  </label>
-                  <input
-                    id="iptuMonthly"
-                    type="number"
-                    min="0"
-                    step="0.01"
-                    value={iptuMonthly}
-                    onChange={(e) => setIptuMonthly(e.target.value)}
-                    className={styles.input}
-                  />
-                </div>
-              </div>
-
-              <div className={styles.row} style={{ marginTop: "16px" }}>
-                <div>
-                  <label className={styles.label} htmlFor="availableFrom">
-                    <span>Disponível a partir de</span>
-                  </label>
-                  <input
-                    id="availableFrom"
-                    type="date"
-                    value={availableFrom}
-                    onChange={(e) => setAvailableFrom(e.target.value)}
-                    className={styles.input}
-                  />
-                </div>
-                <div>
-                  <label className={styles.label} htmlFor="minimumLeaseMonths">
-                    <span>Prazo mínimo (meses)</span>
-                  </label>
-                  <input
-                    id="minimumLeaseMonths"
-                    type="number"
-                    min="0"
-                    value={minimumLeaseMonths}
-                    onChange={(e) => setMinimumLeaseMonths(e.target.value)}
-                    className={styles.input}
-                  />
-                </div>
-              </div>
-
-              <div style={{ marginTop: "20px" }}>
-                <h3 className={styles.airbnbSubHeading}>Garantias aceitas</h3>
-                <div className={styles.toggleGrid}>
-                  {GUARANTEE_OPTIONS.map((opt) => (
-                    <label key={opt.value} className={styles.toggleItem}>
-                      <input
-                        type="checkbox"
-                        checked={guaranteeTypes.includes(opt.value)}
-                        onChange={() => toggleGuaranteeType(opt.value)}
-                      />
-                      <span>{opt.label}</span>
-                    </label>
-                  ))}
-                </div>
-              </div>
-
-              <div className={styles.toggleGrid} style={{ marginTop: "16px" }}>
-                <label className={styles.toggleItem}>
-                  <input type="checkbox" checked={isFurnished} onChange={(e) => setIsFurnished(e.target.checked)} />
-                  <span>Mobiliado</span>
-                </label>
-                <label className={styles.toggleItem}>
-                  <input type="checkbox" checked={allowPetsMonthly} onChange={(e) => setAllowPetsMonthly(e.target.checked)} />
-                  <span>Aceita animais de estimação</span>
-                </label>
-              </div>
-            </section>
-          )}
-
-          {/* ── DIÁRIA (seção 68) — mantém regras/segurança/cancelamento já existentes ── */}
-          {modality === "diaria" && (
-            <>
-              <section className={styles.section}>
-                <div className={styles.sectionHeader}>
-                  <div className={styles.sectionIconWrap}>
-                    <ShieldCheck size={22} />
-                  </div>
-                  <div>
-                    <h2 className={styles.sectionTitle}>Regras da acomodação & Segurança</h2>
-                    <p className={styles.sectionSubtitle}>Horários, restrições e políticas de cancelamento para seus hóspedes</p>
-                  </div>
+        {/* ── ETAPA 2: SOBRE O IMÓVEL ── */}
+        {activeStep === 2 && (
+          <div key="step-2" className={styles.stepEnter}>
+            <Card icon={Sparkles} title="Capacidade & Estrutura" subtitle="Ajuste cômodos e área do imóvel.">
+              <div className={styles.fields}>
+                <div className={styles.grid2}>
+                  <Field id="privateArea" label="Área privativa (m²)" optional error={errorFor("privateArea")}>
+                    <input id="privateArea" type="number" inputMode="decimal" min="0" step="0.01" placeholder="Ex.: 68" value={privateArea} onChange={(e) => setPrivateArea(e.target.value)} onBlur={() => touch("privateArea")} className={styles.input} {...describe("privateArea", errorFor("privateArea"))} />
+                  </Field>
+                  <Field id="totalArea" label="Área total (m²)" optional>
+                    <input id="totalArea" type="number" inputMode="decimal" min="0" step="0.01" placeholder="Ex.: 75" value={totalArea} onChange={(e) => setTotalArea(e.target.value)} onBlur={() => touch("privateArea")} className={styles.input} aria-invalid={errorFor("privateArea") ? true : undefined} />
+                  </Field>
                 </div>
 
-                <div className={styles.row}>
-                  <div>
-                    <label className={styles.label} htmlFor="checkInTime">Check-in a partir das</label>
+                <div className={styles.counters}>
+                  <CounterRow icon={BedDouble} title="Quartos" subtitle="Quantos quartos possui o imóvel?" value={bedrooms} onChange={(v) => { setStructureConfirmed(false); setBedrooms(v); }} />
+                  <CounterRow icon={DoorClosed} title="Suítes" subtitle="Quantas suítes possui o imóvel?" value={suites} onChange={(v) => { setStructureConfirmed(false); setSuites(v); }} />
+                  <CounterRow icon={Bath} title="Banheiros" subtitle="Quantidade de banheiros" value={bathrooms} onChange={(v) => { setStructureConfirmed(false); setBathrooms(v); }} />
+                  <CounterRow icon={Car} title="Vagas de garagem" subtitle="Quantidade de vagas" value={parking} onChange={(v) => { setStructureConfirmed(false); setParking(v); }} />
+                </div>
+
+                <div className={styles.field}>
+                  <label className={`${styles.confirm} ${structureConfirmed ? styles.confirmOn : errorFor("structureConfirmed") ? styles.confirmInvalid : ""}`}>
                     <input
-                      id="checkInTime"
-                      type="time"
-                      value={checkInTime}
-                      onChange={(e) => setCheckInTime(e.target.value)}
-                      className={styles.input}
+                      id="structureConfirmed"
+                      type="checkbox"
+                      checked={structureConfirmed}
+                      onChange={(e) => setStructureConfirmed(e.target.checked)}
+                      {...describe("structureConfirmed", errorFor("structureConfirmed"))}
                     />
-                  </div>
-                  <div>
-                    <label className={styles.label} htmlFor="checkOutTime">Checkout antes das</label>
-                    <input
-                      id="checkOutTime"
-                      type="time"
-                      value={checkOutTime}
-                      onChange={(e) => setCheckOutTime(e.target.value)}
-                      className={styles.input}
-                    />
-                  </div>
+                    <span>
+                      Confirmo as quantidades informadas: <strong>{plural(bedrooms, "quarto", "quartos")}, {plural(suites, "suíte", "suítes")}, {plural(bathrooms, "banheiro", "banheiros")} e {plural(parking, "vaga", "vagas")}</strong>.
+                    </span>
+                  </label>
+                  <FieldError id="structureConfirmed-error" message={errorFor("structureConfirmed")} />
                 </div>
+              </div>
+            </Card>
 
-                <div className={styles.row} style={{ marginTop: "16px" }}>
-                  <div>
-                    <label className={styles.label} htmlFor="customMaxGuests">Máximo de Hóspedes</label>
+            <Card icon={CheckCircle2} title="Comodidades" subtitle="O que o imóvel oferece.">
+              <div className={styles.fields}>
+                <Toggle checked={isFurnished} onChange={setIsFurnished} label="Mobiliado" description="Ative para informar equipamentos incluídos" />
+                <AmenitiesSelector value={amenities} onChange={setAmenities} modality={modality} furnished={isFurnished} />
+              </div>
+            </Card>
+          </div>
+        )}
+
+        {/* ── ETAPA 3: LOCALIZAÇÃO ── */}
+        {activeStep === 3 && (
+          <div key="step-3" className={styles.stepEnter}>
+            <Card icon={MapPin} title="Onde fica o seu imóvel?" subtitle="Comece pelo CEP.">
+              <div className={styles.fields}>
+                <div className={styles.grid2}>
+                  <Field id="cep" label="CEP" required error={cepError} hint={cepHint}>
                     <input
-                      id="customMaxGuests"
-                      type="number"
-                      min="1"
-                      max="50"
-                      value={customMaxGuests}
-                      onChange={(e) => setCustomMaxGuests(Number(e.target.value))}
-                      className={styles.input}
-                    />
-                  </div>
-                  <div>
-                    <label className={styles.label} htmlFor="minimumNights">Estadia mínima (noites)</label>
-                    <input
-                      id="minimumNights"
-                      type="number"
-                      min="1"
-                      value={minimumNights}
-                      onChange={(e) => setMinimumNights(e.target.value)}
-                      className={styles.input}
-                    />
-                  </div>
-                </div>
-
-                <div style={{ marginTop: "16px" }}>
-                  <label className={styles.label} htmlFor="cleaningFee">Taxa de limpeza (R$)</label>
-                  <input
-                    id="cleaningFee"
-                    type="number"
-                    min="0"
-                    step="0.01"
-                    value={cleaningFee}
-                    onChange={(e) => setCleaningFee(e.target.value)}
-                    className={styles.input}
-                  />
-                </div>
-
-                <div style={{ marginTop: "24px", paddingTop: "20px", borderTop: "1px solid var(--border)" }}>
-                  <h3 className={styles.airbnbSubHeading}>Regras da Acomodação</h3>
-                  <div className={styles.toggleGrid}>
-                    <label className={styles.toggleItem}>
-                      <input type="checkbox" checked={allowPetsDaily} onChange={(e) => setAllowPetsDaily(e.target.checked)} />
-                      <span>Animais de estimação permitidos</span>
-                    </label>
-                    <label className={styles.toggleItem}>
-                      <input type="checkbox" checked={allowSmoking} onChange={(e) => setAllowSmoking(e.target.checked)} />
-                      <span>Permitido fumar</span>
-                    </label>
-                    <label className={styles.toggleItem}>
-                      <input type="checkbox" checked={allowParties} onChange={(e) => setAllowParties(e.target.checked)} />
-                      <span>Eventos / Festas permitidos</span>
-                    </label>
-                  </div>
-                </div>
-
-                <div className={styles.row} style={{ marginTop: "16px" }}>
-                  <div>
-                    <label className={styles.label} htmlFor="quietHours">Horário de Silêncio</label>
-                    <input
-                      id="quietHours"
+                      id="cep"
                       type="text"
-                      placeholder="Ex: 22:00 às 08:00"
-                      value={quietHours}
-                      onChange={(e) => setQuietHours(e.target.value)}
-                      className={styles.input}
+                      inputMode="numeric"
+                      autoComplete="postal-code"
+                      placeholder="00000-000"
+                      maxLength={9}
+                      value={cep}
+                      onChange={(e) => { const next = formatCep(e.target.value); setCep(next); if (next.replace(/\D/g, "").length < 8) { setCepStatus("idle"); lastCepLookup.current = ""; } else void lookupCep(next); }}
+                      onBlur={() => { touch("cep"); void lookupCep(cep); }}
+                      className={`${styles.input} ${cepStatus === "found" && !cepError ? styles.inputValid : ""}`}
+                      {...describe("cep", cepError, true)}
                     />
-                  </div>
-                  <div>
-                    <label className={styles.label} htmlFor="customNotes">Observação Adicional</label>
-                    <input
-                      id="customNotes"
-                      type="text"
-                      placeholder="Ex: Retirar os sapatos na entrada"
-                      value={customNotes}
-                      onChange={(e) => setCustomNotes(e.target.value)}
-                      className={styles.input}
-                    />
-                  </div>
+                  </Field>
                 </div>
 
-                <div style={{ marginTop: "24px", paddingTop: "20px", borderTop: "1px solid var(--border)" }}>
-                  <h3 className={styles.airbnbSubHeading}>Segurança & Proteção</h3>
-                  {stepError && issuesForStep(4).some(issue => issue.field === "safety") && <p id="safety-error" className={styles.error}>Informe se o imóvel possui cada item de segurança.</p>}
-                  <div id="safety" role="group" aria-label="Itens de segurança" aria-describedby={stepError ? "safety-error" : undefined} tabIndex={-1} className={styles.toggleGrid}>
-                    <label className={styles.toggleItem}>
-                      <select aria-label="Câmeras externas" value={externalCameras === null ? "" : String(externalCameras)} onChange={(e) => setExternalCameras(e.target.value === "" ? null : e.target.value === "true")}><option value="">Não informado</option><option value="true">Possui</option><option value="false">Não possui</option></select>
-                      <span>Câmeras externas</span>
-                    </label>
-                    <label className={styles.toggleItem}>
-                      <select aria-label="Alarme de fumaça" value={smokeAlarm === null ? "" : String(smokeAlarm)} onChange={(e) => setSmokeAlarm(e.target.value === "" ? null : e.target.value === "true")}><option value="">Não informado</option><option value="true">Possui</option><option value="false">Não possui</option></select>
-                      <span>Alarme de fumaça</span>
-                    </label>
-                    <label className={styles.toggleItem}>
-                      <select aria-label="Extintor de incêndio" value={fireExtinguisher === null ? "" : String(fireExtinguisher)} onChange={(e) => setFireExtinguisher(e.target.value === "" ? null : e.target.value === "true")}><option value="">Não informado</option><option value="true">Possui</option><option value="false">Não possui</option></select>
-                      <span>Extintor de incêndio</span>
-                    </label>
-                    <label className={styles.toggleItem}>
-                      <select aria-label="Portaria 24h" value={doorman24h === null ? "" : String(doorman24h)} onChange={(e) => setDoorman24h(e.target.value === "" ? null : e.target.value === "true")}><option value="">Não informado</option><option value="true">Possui</option><option value="false">Não possui</option></select>
-                      <span>Portaria 24h</span>
-                    </label>
-                    <label className={styles.toggleItem}>
-                      <select aria-label="Kit primeiros socorros" value={firstAidKit === null ? "" : String(firstAidKit)} onChange={(e) => setFirstAidKit(e.target.value === "" ? null : e.target.value === "true")}><option value="">Não informado</option><option value="true">Possui</option><option value="false">Não possui</option></select>
-                      <span>Kit primeiros socorros</span>
-                    </label>
-                  </div>
+                <div className={styles.gridAddress}>
+                  <Field id="logradouro" label="Rua / Avenida">
+                    <input id="logradouro" type="text" autoComplete="address-line1" placeholder="Rua, avenida, alameda…" value={logradouro} onChange={(e) => setLogradouro(e.target.value)} className={styles.input} />
+                  </Field>
+                  <Field id="numero" label="Número">
+                    <input id="numero" type="text" placeholder="123 ou S/N" value={numero} onChange={(e) => setNumero(e.target.value)} className={styles.input} />
+                  </Field>
                 </div>
 
-                <div style={{ marginTop: "24px", paddingTop: "20px", borderTop: "1px solid var(--border)" }}>
-                  <h3 className={styles.airbnbSubHeading}>Política de Cancelamento</h3>
-                  <div className={styles.optionGrid}>
-                    <button
-                      type="button"
-                      className={`${styles.optionCard} ${cancellationPolicy === "FLEXIBLE" ? styles.optionCardActive : ""}`}
-                      onClick={() => setCancellationPolicy("FLEXIBLE")}
-                    >
-                      <p className={styles.optionCardTitle}>Flexível</p>
-                      <p className={styles.optionCardSubtitle}>Reembolso total até 48h antes do check-in.</p>
-                    </button>
-                    <button
-                      type="button"
-                      className={`${styles.optionCard} ${cancellationPolicy === "MODERATE" ? styles.optionCardActive : ""}`}
-                      onClick={() => setCancellationPolicy("MODERATE")}
-                    >
-                      <p className={styles.optionCardTitle}>Moderada</p>
-                      <p className={styles.optionCardSubtitle}>Reembolso total até 5 dias antes do check-in.</p>
-                    </button>
-                    <button
-                      type="button"
-                      className={`${styles.optionCard} ${cancellationPolicy === "STRICT" ? styles.optionCardActive : ""}`}
-                      onClick={() => setCancellationPolicy("STRICT")}
-                    >
-                      <p className={styles.optionCardTitle}>Rigorosa</p>
-                      <p className={styles.optionCardSubtitle}>50% de reembolso até 7 dias antes do check-in.</p>
-                    </button>
-                  </div>
+                <div className={styles.grid2}>
+                  <Field id="complemento" label="Complemento" optional>
+                    <input id="complemento" type="text" placeholder="Apto, bloco, casa…" value={complemento} onChange={(e) => setComplemento(e.target.value)} className={styles.input} />
+                  </Field>
+                  <Field id="bairro" label="Bairro">
+                    <input id="bairro" type="text" placeholder="Nome do bairro" value={bairro} onChange={(e) => setBairro(e.target.value)} className={styles.input} />
+                  </Field>
                 </div>
-              </section>
-            </>
-          )}
-        </div>
-      )}
 
-      {/* ── ETAPA 5: ATENDIMENTO/CRM (só organização) ── */}
-      {activeStep === 5 && isOrg && (
-        <div className={styles.stepContent}>
-          <section className={styles.section}>
-            <div className={styles.sectionHeader}>
-              <div className={styles.sectionIconWrap}>
-                <Users size={22} />
+                <div className={styles.gridAddress}>
+                  <Field id="cidade" label="Cidade" required error={errorFor("cidade")}>
+                    <input id="cidade" type="text" autoComplete="address-level2" placeholder="Nome da cidade" value={cidade} onChange={(e) => setCidade(e.target.value)} onBlur={() => touch("cidade")} className={styles.input} {...describe("cidade", errorFor("cidade"))} />
+                  </Field>
+                  <Field id="uf" label="UF" required error={errorFor("uf")}>
+                    <input id="uf" type="text" autoComplete="address-level1" maxLength={2} placeholder="SP" value={uf} onChange={(e) => setUf(e.target.value.toUpperCase())} onBlur={() => touch("uf")} className={styles.input} {...describe("uf", errorFor("uf"))} />
+                  </Field>
+                </div>
               </div>
-              <div>
-                <h2 className={styles.sectionTitle}>Atendimento de Leads</h2>
-                <p className={styles.sectionSubtitle}>Quem recebe os leads gerados por este imóvel?</p>
-              </div>
-            </div>
+            </Card>
 
-            <div className={styles.optionGrid}>
-              <button
-                type="button"
-                className={`${styles.optionCard} ${!hasSpecificAgent ? styles.optionCardActive : ""}`}
-                onClick={() => setHasSpecificAgent(false)}
-              >
-                <p className={styles.optionCardTitle}>Distribuição da imobiliária</p>
-                <p className={styles.optionCardSubtitle}>Segue as regras de distribuição da organização</p>
-              </button>
-              <button
-                type="button"
-                className={`${styles.optionCard} ${hasSpecificAgent ? styles.optionCardActive : ""}`}
-                disabled={!!myOrg && !["OWNER", "ADMIN"].includes(myOrg.role)}
-                onClick={() => setHasSpecificAgent(true)}
-              >
-                <p className={styles.optionCardTitle}>Responsável por este imóvel</p>
-                <p className={styles.optionCardSubtitle}>Escolha uma pessoa específica da equipe</p>
-              </button>
-            </div>
-
-            {hasSpecificAgent && (
-              <div style={{ marginTop: "16px" }}>
-                <label className={styles.label} htmlFor="assignedAgentSelect">
-                  <span>Responsável</span>
-                </label>
-                <select
-                  id="assignedAgentSelect"
-                disabled={!!myOrg && !["OWNER", "ADMIN"].includes(myOrg.role)}
-                  value={assignedAgentId}
-                  onChange={(e) => setAssignedAgentId(e.target.value)}
-                  className={styles.input}
-                >
-                  <option value="">Selecione…</option>
-                  {activeMembers.map((m) => (
-                    <option key={m.id} value={m.user?.id ?? ""}>
-                      {m.user?.name ?? "Membro"} ({m.role})
-                    </option>
-                  ))}
-                </select>
-              </div>
-            )}
-
-            {buildingId && (
-              <div style={{ marginTop: "20px", paddingTop: "20px", borderTop: "1px solid var(--border)" }}>
-                <label className={styles.toggleItem}>
-                  <input
-                    type="checkbox"
-                    checked={assumeBuildingLeads}
-                    onChange={(e) => setAssumeBuildingLeads(e.target.checked)}
+            {isOrg && (
+              <Card icon={Building2} title="Empreendimento" subtitle="Vincule este imóvel a um empreendimento já cadastrado, se houver.">
+                <Field id="buildingSelect" label="Empreendimento" optional>
+                  <select id="buildingSelect" value={buildingId} onChange={(e) => setBuildingId(e.target.value)} className={styles.input}>
+                    <option value="">Nenhum</option>
+                    {buildingOptions.map((b) => (
+                      <option key={b.id} value={b.id}>{b.name}</option>
+                    ))}
+                  </select>
+                </Field>
+                {!showNewBuildingForm ? (
+                  <button type="button" className={`${styles.btnSecondary} ${styles.btnSmall}`} style={{ marginTop: 12 }} onClick={() => setShowNewBuildingForm(true)}>
+                    <Plus size={16} aria-hidden="true" />Novo empreendimento
+                  </button>
+                ) : (
+                  <NewBuildingInlineForm
+                    onCreated={(b) => {
+                      setBuildingOptions((prev) => [...prev, b]);
+                      setBuildingId(b.id);
+                      setShowNewBuildingForm(false);
+                    }}
+                    onCancel={() => setShowNewBuildingForm(false)}
                   />
-                  <span>Assumir todos os Leads deste empreendimento</span>
-                </label>
-              </div>
+                )}
+              </Card>
             )}
-          </section>
-        </div>
-      )}
+          </div>
+        )}
 
-      {/* ── ETAPA 6: FOTOS & REVISÃO ── */}
-      {(
-        <div className={styles.stepContent} hidden={activeStep !== 6}>
-          <section className={styles.section} aria-label="Revisão do anúncio">
-            <h2>Revise antes de publicar</h2>
-            <p>{isOrg ? "O anúncio será enviado para aprovação da própria imobiliária antes de aparecer na busca." : "Após a validação dos campos, seu anúncio será publicado diretamente, sem aprovação editorial prévia."} A verificação da imobiliária é independente e não garante a autenticidade do imóvel.</p>
-            {pendingIssues.length > 0 && <div role="status"><h3>Pendências para publicar</h3><ul>{pendingIssues.map(issue => <li key={issue.field}><button type="button" onClick={() => { setCurrentStep(issue.step); setStepError(issue.message); requestAnimationFrame(() => document.getElementById(issue.field)?.focus()); }}>{issue.message}</button></li>)}</ul></div>}
-            <dl>
-              <dt>Modalidade e apresentação <button type="button" onClick={() => setCurrentStep(1)}>Editar</button></dt>
-              <dd>{modality === "venda" ? "Venda" : modality === "mensal" ? "Aluguel mensal" : "Temporada"} · {type} · {name || "Título não informado"}<p>{description || "Descrição não informada"}</p></dd>
-              <dt>Características <button type="button" onClick={() => setCurrentStep(2)}>Editar</button></dt>
-              <dd>{structureConfirmed ? `${bedrooms} quartos, ${suites} suítes, ${bathrooms} banheiros e ${parking} vagas` : "Quantidades não confirmadas"}. Área privativa: {privateArea || "não informada"}; total: {totalArea || "não informada"}. {isFurnished ? "Mobiliado" : "Mobiliário não confirmado"}. Comodidades: {visibleAmenities.join(", ") || "nenhuma confirmada"}.</dd>
-              <dt>Localização <button type="button" onClick={() => setCurrentStep(3)}>Editar</button></dt>
-              <dd>{[logradouro, numero, complemento, bairro, cidade, uf, cep].filter(Boolean).join(" · ") || "Não informada"}</dd>
-              <dt>Valores e regras <button type="button" onClick={() => setCurrentStep(4)}>Editar</button></dt>
-              <dd>Preço: {Number(price) > 0 ? Number(price).toLocaleString("pt-BR", {style: "currency", currency: "BRL"}) : "não informado"}. Negociação: {acceptsNegotiation ? "aceita" : "não autorizada"}.
-                {modality === "venda" && <p>Condomínio: {condoFee || "não informado"}; IPTU anual: {iptuAnnual || "não informado"}; financiamento: {acceptsFinancing ? "sim" : "não confirmado"}; permuta: {acceptsExchange ? "sim" : "não confirmada"}.</p>}
-                {modality === "mensal" && <p>Condomínio: {condoFee || "não informado"}; IPTU mensal: {iptuMonthly || "não informado"}; disponibilidade: {availableFrom || "não informada"}; prazo mínimo: {minimumLeaseMonths || "não informado"}; garantias: {guaranteeTypes.join(", ") || "não informadas"}; pets: {allowPetsMonthly ? "permitidos" : "não autorizados"}.</p>}
-                {modality === "diaria" && <><p>Até {customMaxGuests} hóspedes; mínimo de {minimumNights} noites; limpeza: {cleaningFee || "não informada"}; entrada: {checkInTime}; saída: {checkOutTime}; pets: {allowPetsDaily ? "permitidos" : "não autorizados"}; fumar: {allowSmoking ? "permitido" : "não autorizado"}; festas: {allowParties ? "permitidas" : "não autorizadas"}; silêncio: {quietHours}; {customNotes}. Cancelamento: {cancellationPolicy}.</p><p>Segurança: {Object.entries({"Câmeras externas": externalCameras, "Alarme de fumaça": smokeAlarm, "Extintor": fireExtinguisher, "Portaria 24h": doorman24h, "Primeiros socorros": firstAidKit}).map(([label, value]) => `${label}: ${value === null ? "não informado" : value ? "possui" : "não possui"}`).join("; ")}.</p></>}
-              </dd>
-            </dl>
-            <p>{imageCount} foto(s) selecionada(s). A primeira foto será a capa.</p>
-          </section>
-          <div className={styles.finalStepGrid}>
-            <div className={styles.finalStepLeft}>
-              <section className={styles.section}>
-                <div className={styles.sectionHeader}>
-                  <div className={styles.sectionIconWrap}>
-                    <Camera size={22} />
+        {/* ── ETAPA 4: CONDIÇÕES (por modalidade) ── */}
+        {activeStep === 4 && (
+          <div key="step-4" className={styles.stepEnter}>
+            <Card
+              icon={Wallet}
+              title={modality === "diaria" ? "Preço por noite" : modality === "mensal" ? "Preço mensal" : "Preço de venda"}
+              subtitle={modality === "diaria" ? "Valor cobrado por noite de hospedagem." : modality === "mensal" ? "Valor do aluguel cobrado por mês." : "Valor total de venda do imóvel."}
+            >
+              <div className={styles.fields}>
+                <div className={styles.field}>
+                  <div className={`${styles.priceBox} ${errorFor("price") ? styles.priceInvalid : ""}`}>
+                    <span className={styles.priceSymbol} aria-hidden="true">R$</span>
+                    <input
+                      id="price"
+                      aria-label={modality === "diaria" ? "Diária em reais" : modality === "mensal" ? "Aluguel mensal em reais" : "Preço de venda em reais"}
+                      type="number"
+                      inputMode="decimal"
+                      min="0"
+                      step="0.01"
+                      placeholder="0"
+                      value={price}
+                      onChange={(e) => setPrice(e.target.value)}
+                      onBlur={() => touch("price")}
+                      className={styles.priceInput}
+                      {...describe("price", errorFor("price"), !!priceLabel)}
+                    />
+                    {PERIOD[modality] && <span className={styles.pricePeriod}>{PERIOD[modality]}</span>}
+                  </div>
+                  {priceLabel && !errorFor("price") && <p id="price-hint" className={styles.hint}>Os interessados verão: <strong>{priceLabel}{PERIOD[modality] && ` ${PERIOD[modality]}`}</strong></p>}
+                  <FieldError id="price-error" message={errorFor("price")} />
+                </div>
+
+                <Toggle checked={acceptsNegotiation} onChange={setAcceptsNegotiation} label="Aceita negociação de valor pelo chat" description="Interessados podem enviar propostas pelo chat." />
+                {acceptsNegotiation && (
+                  <Field
+                    id="minNegotiablePrice"
+                    label={`Valor mínimo aceito (R$${modality === "diaria" ? " por noite" : modality === "mensal" ? "/mês" : ""})`}
+                    optional
+                    hint="Nunca aparece para o cliente. Propostas abaixo dele são recusadas automaticamente."
+                  >
+                    <input id="minNegotiablePrice" type="number" inputMode="decimal" min="0" step="0.01" value={minNegotiablePrice} onChange={(e) => setMinNegotiablePrice(e.target.value)} className={styles.input} {...describe("minNegotiablePrice", undefined, true)} />
+                  </Field>
+                )}
+              </div>
+            </Card>
+
+            {/* ── VENDA (seção 66) ── */}
+            {modality === "venda" && (
+              <Card icon={Ruler} title="Condições da venda" subtitle="Condomínio, IPTU, financiamento e permuta.">
+                <div className={styles.fields}>
+                  <div id="charges" tabIndex={-1} className={styles.grid2}>
+                    {moneyInput({ id: "condoFeeSale", label: "Condomínio (R$/mês)", value: condoFee, onChange: setCondoFee, suffix: " por mês" })}
+                    {moneyInput({ id: "iptuAnnual", label: "IPTU (R$/ano)", value: iptuAnnual, onChange: setIptuAnnual, suffix: " por ano" })}
+                  </div>
+                  <FieldError id="charges-error" message={errorFor("charges")} />
+                  <div className={styles.toggles}>
+                    <Toggle checked={acceptsFinancing} onChange={setAcceptsFinancing} label="Aceita financiamento" />
+                    <Toggle checked={acceptsExchange} onChange={setAcceptsExchange} label="Aceita permuta" />
+                  </div>
+                </div>
+              </Card>
+            )}
+
+            {/* ── ALUGUEL MENSAL (seção 67) ── */}
+            {modality === "mensal" && (
+              <Card icon={CalendarDays} title="Condições do aluguel mensal" subtitle="Condomínio, IPTU, disponibilidade e garantias.">
+                <div className={styles.fields}>
+                  <div id="charges" tabIndex={-1} className={styles.grid2}>
+                    {moneyInput({ id: "condoFeeMonthly", label: "Condomínio (R$/mês)", value: condoFee, onChange: setCondoFee, suffix: " por mês" })}
+                    {moneyInput({ id: "iptuMonthly", label: "IPTU (R$/mês)", value: iptuMonthly, onChange: setIptuMonthly, suffix: " por mês" })}
+                  </div>
+                  <FieldError id="charges-error" message={errorFor("charges")} />
+                  <div className={styles.grid2}>
+                    <Field id="availableFrom" label="Disponível a partir de" optional>
+                      <input id="availableFrom" type="date" value={availableFrom} onChange={(e) => setAvailableFrom(e.target.value)} className={styles.input} />
+                    </Field>
+                    <Field id="minimumLeaseMonths" label="Prazo mínimo (meses)" optional>
+                      <input id="minimumLeaseMonths" type="number" inputMode="numeric" min="0" value={minimumLeaseMonths} onChange={(e) => setMinimumLeaseMonths(e.target.value)} className={styles.input} />
+                    </Field>
                   </div>
                   <div>
-                    <h2 className={styles.sectionTitle}>Fotos do imóvel</h2>
-                    <p className={styles.sectionSubtitle}>Adicione fotos de alta qualidade para atrair mais interessados</p>
+                    <h4 className={styles.subHeading}>Garantias aceitas</h4>
+                    <div className={styles.toggles}>
+                      {GUARANTEE_OPTIONS.map((opt) => (
+                        <Toggle key={opt.value} checked={guaranteeTypes.includes(opt.value)} onChange={() => toggleGuaranteeType(opt.value)} label={opt.label} />
+                      ))}
+                    </div>
+                  </div>
+                  <div className={styles.toggles}>
+                    <Toggle checked={isFurnished} onChange={setIsFurnished} label="Mobiliado" />
+                    <Toggle checked={allowPetsMonthly} onChange={setAllowPetsMonthly} label="Aceita animais de estimação" />
                   </div>
                 </div>
+              </Card>
+            )}
 
-                <MultiImageInput key={draftRevision} name="images" initialFiles={draftFiles} onFilesChange={(count, files) => { setImageCount(count); filesRef.current = files; }} />
-              </section>
-            </div>
+            {/* ── DIÁRIA (seção 68) — regras, segurança e cancelamento ── */}
+            {modality === "diaria" && (
+              <>
+                <Card icon={CalendarDays} title="Estadia" subtitle="Horários, capacidade e taxas para seus hóspedes.">
+                  <div className={styles.fields}>
+                    <div className={styles.grid2}>
+                      <Field id="checkInTime" label="Check-in a partir das">
+                        <input id="checkInTime" type="time" value={checkInTime} onChange={(e) => setCheckInTime(e.target.value)} className={styles.input} />
+                      </Field>
+                      <Field id="checkOutTime" label="Checkout antes das">
+                        <input id="checkOutTime" type="time" value={checkOutTime} onChange={(e) => setCheckOutTime(e.target.value)} className={styles.input} />
+                      </Field>
+                    </div>
+                    <div className={styles.grid2}>
+                      <Field id="customMaxGuests" label="Máximo de hóspedes" required error={errorFor("customMaxGuests")}>
+                        <input id="customMaxGuests" type="number" inputMode="numeric" min="1" max="50" value={customMaxGuests} onChange={(e) => setCustomMaxGuests(Number(e.target.value))} onBlur={() => touch("customMaxGuests")} className={styles.input} {...describe("customMaxGuests", errorFor("customMaxGuests"))} />
+                      </Field>
+                      <Field id="minimumNights" label="Estadia mínima (noites)" required error={errorFor("minimumNights")}>
+                        <input id="minimumNights" type="number" inputMode="numeric" min="1" value={minimumNights} onChange={(e) => setMinimumNights(e.target.value)} onBlur={() => touch("minimumNights")} className={styles.input} {...describe("minimumNights", errorFor("minimumNights"))} />
+                      </Field>
+                    </div>
+                    <div id="charges" tabIndex={-1} className={styles.grid2}>
+                      {moneyInput({ id: "cleaningFee", label: "Taxa de limpeza (R$)", value: cleaningFee, onChange: setCleaningFee, suffix: " por estadia" })}
+                    </div>
+                    <FieldError id="charges-error" message={errorFor("charges")} />
+                  </div>
+                </Card>
 
-            <aside className={styles.previewSidebar}>
-              <div className={styles.previewCard}>
-                <div className={styles.previewHeader}>
-                  <Eye size={16} />
-                  <span>Prévia do Anúncio</span>
+                <Card icon={ShieldCheck} title="Regras da acomodação" subtitle="O que é permitido durante a estadia.">
+                  <div className={styles.fields}>
+                    <div className={styles.toggles}>
+                      <Toggle checked={allowPetsDaily} onChange={setAllowPetsDaily} label="Animais de estimação permitidos" />
+                      <Toggle checked={allowSmoking} onChange={setAllowSmoking} label="Permitido fumar" />
+                      <Toggle checked={allowParties} onChange={setAllowParties} label="Eventos / festas permitidos" />
+                    </div>
+                    <div className={styles.grid2}>
+                      <Field id="quietHours" label="Horário de silêncio">
+                        <input id="quietHours" type="text" placeholder="Ex.: 22:00 às 08:00" value={quietHours} onChange={(e) => setQuietHours(e.target.value)} className={styles.input} />
+                      </Field>
+                      <Field id="customNotes" label="Observação adicional" optional>
+                        <input id="customNotes" type="text" placeholder="Ex.: Retirar os sapatos na entrada" value={customNotes} onChange={(e) => setCustomNotes(e.target.value)} className={styles.input} />
+                      </Field>
+                    </div>
+                  </div>
+                </Card>
+
+                <Card icon={ShieldCheck} title="Segurança & Proteção" subtitle="Responda para cada item — essa informação aparece para os hóspedes.">
+                  <div className={styles.fields}>
+                    <div id="safety" role="group" aria-label="Itens de segurança" aria-describedby={safetyError ? "safety-error" : undefined} tabIndex={-1} className={styles.safetyGrid}>
+                      {safetyItems.map((item) => (
+                        <YesNo key={item.id} id={item.id} label={item.label} value={item.value} onChange={item.set} invalid={!!safetyError && item.value === null} />
+                      ))}
+                    </div>
+                    <FieldError id="safety-error" message={safetyError} />
+                  </div>
+                </Card>
+
+                <Card icon={FileText} title="Política de cancelamento">
+                  <div className={styles.choices}>
+                    <ChoiceCard active={cancellationPolicy === "FLEXIBLE"} onClick={() => setCancellationPolicy("FLEXIBLE")} title="Flexível" subtitle="Reembolso total até 48h antes do check-in." />
+                    <ChoiceCard active={cancellationPolicy === "MODERATE"} onClick={() => setCancellationPolicy("MODERATE")} title="Moderada" subtitle="Reembolso total até 5 dias antes do check-in." />
+                    <ChoiceCard active={cancellationPolicy === "STRICT"} onClick={() => setCancellationPolicy("STRICT")} title="Rigorosa" subtitle="50% de reembolso até 7 dias antes do check-in." />
+                  </div>
+                </Card>
+              </>
+            )}
+          </div>
+        )}
+
+        {/* ── ETAPA 5: ATENDIMENTO/CRM (só organização) ── */}
+        {activeStep === 5 && isOrg && (
+          <div key="step-5" className={styles.stepEnter}>
+            <Card icon={Users} title="Atendimento de leads" subtitle="Quem recebe os contatos gerados por este imóvel?">
+              <div className={styles.choices}>
+                <ChoiceCard active={!hasSpecificAgent} onClick={() => setHasSpecificAgent(false)} title="Distribuição da imobiliária" subtitle="Segue as regras de distribuição da organização" />
+                <ChoiceCard active={hasSpecificAgent} disabled={!canPickAgent} onClick={() => setHasSpecificAgent(true)} title="Responsável por este imóvel" subtitle={canPickAgent ? "Escolha uma pessoa específica da equipe" : "Disponível para dono ou administrador da imobiliária"} />
+              </div>
+
+              {hasSpecificAgent && (
+                <div style={{ marginTop: 16 }}>
+                  <Field id="assignedAgentSelect" label="Responsável">
+                    <select id="assignedAgentSelect" disabled={!canPickAgent} value={assignedAgentId} onChange={(e) => setAssignedAgentId(e.target.value)} className={styles.input}>
+                      <option value="">Selecione…</option>
+                      {activeMembers.map((m) => (
+                        <option key={m.id} value={m.user?.id ?? ""}>{m.user?.name ?? "Membro"} ({m.role})</option>
+                      ))}
+                    </select>
+                  </Field>
+                </div>
+              )}
+
+              {buildingId && (
+                <>
+                  <hr className={styles.divider} />
+                  <Toggle checked={assumeBuildingLeads} onChange={setAssumeBuildingLeads} label="Assumir todos os leads deste empreendimento" />
+                </>
+              )}
+            </Card>
+          </div>
+        )}
+
+        {/* ── ETAPA 6: FOTOS — sempre montada: o <input type="file"> guarda os arquivos enviados ao publicar ── */}
+        <div className={styles.stepEnter} hidden={activeStep !== photosStep}>
+          <Card icon={Camera} title="Adicione as fotos" subtitle="Fotos de qualidade atraem mais interessados. A primeira é a capa; use “Usar como capa” ou as setas para reordenar.">
+            <MultiImageInput
+              key={draftRevision}
+              name="images"
+              initialFiles={draftFiles}
+              error={activeStep === photosStep ? errorFor("photos") : undefined}
+              onFilesChange={(count, files) => { setImageCount(count); filesRef.current = files; updatePhotos(files); }}
+            />
+          </Card>
+        </div>
+
+        {/* ── ETAPA FINAL: REVISÃO + PRÉVIA COM AS FOTOS ENVIADAS ── */}
+        {activeStep === reviewStep && (
+          <div key="step-review" className={styles.stepEnter}>
+            <div className={styles.review}>
+              <section className={styles.preview} aria-label="Prévia do anúncio">
+                <div className={styles.previewBar}>
+                  <span><Eye size={15} aria-hidden="true" />Prévia do anúncio</span>
+                  <span>{photos.length > 0 ? `${photos.length} foto(s) selecionada(s)` : "Sem fotos"}</span>
                 </div>
 
-                <div className={styles.previewImagePlaceholder}>
-                  <Camera size={32} />
-                  <span>{imageCount > 0 ? `${imageCount} foto(s) selecionada(s) na galeria` : "Adicione fotos na galeria"}</span>
+                <div className={styles.gallery}>
+                  {shownPhoto ? (
+                    // eslint-disable-next-line @next/next/no-img-element
+                    <img key={shownPhoto.url} src={shownPhoto.url} alt={`Foto ${previewIndex + 1} do anúncio${previewIndex === 0 ? " (capa)" : ""}`} />
+                  ) : (
+                    <div className={styles.galleryEmpty}>
+                      <ImagePlus size={32} aria-hidden="true" />
+                      <span>Seu anúncio ainda não tem fotos.</span>
+                      <button type="button" className={`${styles.btnPrimary} ${styles.btnSmall}`} onClick={() => goTo(photosStep)}>Adicionar fotos</button>
+                    </div>
+                  )}
+                  <span className={styles.badge}>{MODALITY_BADGE[modality]}</span>
+                  {photos.length > 1 && (
+                    <>
+                      <button type="button" className={`${styles.galleryNav} ${styles.galleryPrev}`} onClick={() => setPreviewIndex((i) => (i - 1 + photos.length) % photos.length)} aria-label="Foto anterior">
+                        <ChevronLeft size={18} />
+                      </button>
+                      <button type="button" className={`${styles.galleryNav} ${styles.galleryNext}`} onClick={() => setPreviewIndex((i) => (i + 1) % photos.length)} aria-label="Próxima foto">
+                        <ChevronRight size={18} />
+                      </button>
+                      <span className={styles.galleryCount}>{previewIndex + 1}/{photos.length}</span>
+                    </>
+                  )}
                 </div>
+
+                {photos.length > 1 && (
+                  <div className={styles.thumbs}>
+                    {photos.map((photo, index) => (
+                      <button key={photo.url} type="button" className={`${styles.thumbBtn} ${index === previewIndex ? styles.thumbActive : ""}`} onClick={() => setPreviewIndex(index)} aria-label={`Ver foto ${index + 1}`} aria-pressed={index === previewIndex}>
+                        {/* eslint-disable-next-line @next/next/no-img-element */}
+                        <img src={photo.url} alt="" />
+                      </button>
+                    ))}
+                  </div>
+                )}
 
                 <div className={styles.previewBody}>
-                  <h4 className={styles.previewTitle}>{name.trim() ? name : "Título do seu anúncio"}</h4>
-                  <p className={styles.previewLocation}>
-                    <MapPin size={14} />
-                    <span>{cidade && uf ? `${cidade}, ${uf}` : "Cidade, UF"}</span>
-                  </p>
-
-                  <div className={styles.previewSpecs}>
-                    <span>{type === "casa" ? "Casa" : "Apartamento"}</span>
-                    <span>•</span>
-                    <span>{structureConfirmed ? `${bedrooms} quarto(s)` : "Quartos não confirmados"}</span>
-                    <span>•</span>
-                    <span>{structureConfirmed ? `${bathrooms} banheiro(s)` : "Banheiros não confirmados"}</span>
+                  <p className={styles.previewPrice}>{priceLabel ? <>{priceLabel}<small> {PERIOD[modality]}</small></> : <span className={styles.placeholder}>Preço não informado</span>}</p>
+                  <p className={styles.previewTitle}>{name.trim() || <span className={styles.placeholder}>Título não informado</span>}</p>
+                  <p className={styles.previewLoc}><MapPin size={15} aria-hidden="true" />{locationLabel ?? <span className={styles.placeholder}>Localização não informada</span>}</p>
+                  <div className={styles.chips}>
+                    <span className={styles.chip}>{type === "casa" ? <Home size={14} aria-hidden="true" /> : <Building2 size={14} aria-hidden="true" />}{type === "casa" ? "Casa" : "Apartamento"}</span>
+                    <span className={styles.chip}><BedDouble size={14} aria-hidden="true" />{plural(bedrooms, "quarto", "quartos")}</span>
+                    <span className={styles.chip}><Bath size={14} aria-hidden="true" />{plural(bathrooms, "banheiro", "banheiros")}</span>
+                    <span className={styles.chip}><Car size={14} aria-hidden="true" />{plural(parking, "vaga", "vagas")}</span>
+                    {privateArea && Number(privateArea) > 0 && <span className={styles.chip}><Ruler size={14} aria-hidden="true" />{privateArea} m²</span>}
+                    {modality === "diaria" && <span className={styles.chip}><Users size={14} aria-hidden="true" />até {plural(customMaxGuests, "hóspede", "hóspedes")}</span>}
                   </div>
-
-                  <div className={styles.previewPriceRow}>
-                    <span className={styles.previewPriceLabel}>Valor:</span>
-                    <span className={styles.previewPriceVal}>
-                      {Number(price) > 0 ? Number(price).toLocaleString("pt-BR", { style: "currency", currency: "BRL" }) : "Preço não informado"}
-                      {modality === "diaria" ? " / noite" : modality === "mensal" ? " / mês" : ""}
-                    </span>
-                  </div>
+                  {visibleAmenities.length > 0 && (
+                    <div className={styles.chips}>
+                      {visibleAmenities.map((id) => <span key={id} className={styles.chip}><Check size={13} aria-hidden="true" />{AMENITY_LABELS.get(id) ?? id}</span>)}
+                    </div>
+                  )}
+                  {description.trim() && <p className={styles.previewDesc}>{description}</p>}
                 </div>
-              </div>
-            </aside>
-          </div>
-        </div>
-      )}
+              </section>
 
-      {state?.error && (
-        <div className={styles.stepErrorAlert} role="alert">
-          <AlertCircle size={18} />
-          <span>{state.error}</span>
-        </div>
-      )}
+              <div className={styles.side}>
+                {pending ? (
+                  <p className={styles.publishing} role="status">
+                    <LoaderCircle size={18} className={styles.spin} aria-hidden="true" />
+                    Enviando fotos e dados do imóvel. Aguarde a confirmação.
+                  </p>
+                ) : pendingIssues.length > 0 ? (
+                  <div className={styles.summary} role="status">
+                    <CircleAlert size={20} aria-hidden="true" />
+                    <div>
+                      <p className={styles.summaryTitle}>Pendências para publicar</p>
+                      <ul className={styles.summaryList}>
+                        {pendingIssues.map((issue) => (
+                          <li key={issue.field + issue.message}>
+                            <button type="button" className={styles.linkButton} onClick={() => jumpToIssue(issue)}>
+                              {issue.message}
+                            </button>
+                          </li>
+                        ))}
+                      </ul>
+                    </div>
+                  </div>
+                ) : (
+                  <div className={styles.ready}>
+                    <CheckCircle2 size={20} aria-hidden="true" />
+                    <div>
+                      <p className={styles.readyTitle}>Tudo pronto para publicar</p>
+                      <p>Confira a prévia e toque em “Publicar anúncio”.</p>
+                    </div>
+                  </div>
+                )}
+
+                <dl className={styles.summaryCard}>
+                  <div className={styles.summaryItem}>
+                    <dt className={styles.summaryHead}>Modalidade e apresentação <button type="button" className={styles.editBtn} onClick={() => goTo(1)}><Pencil size={13} aria-hidden="true" />Editar</button></dt>
+                    <dd className={styles.summaryValue}>{modality === "venda" ? "Venda" : modality === "mensal" ? "Aluguel mensal" : "Temporada"} · {type === "casa" ? "Casa" : "Apartamento"} · {name || "Título não informado"}</dd>
+                  </div>
+                  <div className={styles.summaryItem}>
+                    <dt className={styles.summaryHead}>Características <button type="button" className={styles.editBtn} onClick={() => goTo(2)}><Pencil size={13} aria-hidden="true" />Editar</button></dt>
+                    <dd className={styles.summaryValue}>
+                      {structureConfirmed ? `${plural(bedrooms, "quarto", "quartos")}, ${plural(suites, "suíte", "suítes")}, ${plural(bathrooms, "banheiro", "banheiros")} e ${plural(parking, "vaga", "vagas")}` : "Quantidades não confirmadas"}.
+                      {" "}Área privativa: {privateArea ? `${privateArea} m²` : "não informada"}; total: {totalArea ? `${totalArea} m²` : "não informada"}. {isFurnished ? "Mobiliado." : "Sem mobília informada."}
+                      {" "}Comodidades: {visibleAmenities.map((id) => AMENITY_LABELS.get(id) ?? id).join(", ") || "nenhuma marcada"}.
+                    </dd>
+                  </div>
+                  <div className={styles.summaryItem}>
+                    <dt className={styles.summaryHead}>Localização <button type="button" className={styles.editBtn} onClick={() => goTo(3)}><Pencil size={13} aria-hidden="true" />Editar</button></dt>
+                    <dd className={styles.summaryValue}>{[[logradouro, numero].filter(Boolean).join(", "), complemento, bairro, [cidade, uf].filter(Boolean).join(" - "), cep].filter(Boolean).join(" · ") || "Não informada"}</dd>
+                  </div>
+                  <div className={styles.summaryItem}>
+                    <dt className={styles.summaryHead}>Valores e regras <button type="button" className={styles.editBtn} onClick={() => goTo(4)}><Pencil size={13} aria-hidden="true" />Editar</button></dt>
+                    <dd className={styles.summaryValue}>
+                      Preço: {priceLabel ? `${priceLabel}${PERIOD[modality] ? ` ${PERIOD[modality]}` : ""}` : "não informado"}. Negociação: {acceptsNegotiation ? "aceita" : "não aceita"}.
+                      {modality === "venda" && <> Condomínio: {condoFee ? formatBRL(condoFee) : "não informado"}; IPTU anual: {iptuAnnual ? formatBRL(iptuAnnual) : "não informado"}; financiamento: {acceptsFinancing ? "sim" : "não"}; permuta: {acceptsExchange ? "sim" : "não"}.</>}
+                      {modality === "mensal" && <> Condomínio: {condoFee ? formatBRL(condoFee) : "não informado"}; IPTU mensal: {iptuMonthly ? formatBRL(iptuMonthly) : "não informado"}; disponível a partir de: {availableFrom ? new Date(`${availableFrom}T12:00:00`).toLocaleDateString("pt-BR") : "não informado"}; prazo mínimo: {minimumLeaseMonths ? `${minimumLeaseMonths} meses` : "não informado"}; garantias: {guaranteeTypes.map((g) => GUARANTEE_OPTIONS.find((o) => o.value === g)?.label ?? g).join(", ") || "não informadas"}; pets: {allowPetsMonthly ? "permitidos" : "não permitidos"}.</>}
+                      {modality === "diaria" && <> Até {plural(customMaxGuests, "hóspede", "hóspedes")}; mínimo de {plural(Number(minimumNights) || 0, "noite", "noites")}; limpeza: {cleaningFee ? formatBRL(cleaningFee) : "não informada"}; check-in {checkInTime}, checkout {checkOutTime}; pets {allowPetsDaily ? "permitidos" : "não permitidos"}; fumar {allowSmoking ? "permitido" : "não permitido"}; festas {allowParties ? "permitidas" : "não permitidas"}; silêncio: {quietHours}{customNotes ? `; ${customNotes}` : ""}. Cancelamento: {CANCELLATION_LABELS[cancellationPolicy]}. Segurança: {safetyItems.map((item) => `${item.label.toLowerCase()} ${item.value === null ? "não informado" : item.value ? "possui" : "não possui"}`).join("; ")}.</>}
+                    </dd>
+                  </div>
+                  <div className={styles.summaryItem}>
+                    <dt className={styles.summaryHead}>Fotos <button type="button" className={styles.editBtn} onClick={() => goTo(photosStep)}><Pencil size={13} aria-hidden="true" />Editar</button></dt>
+                    <dd className={styles.summaryValue}>{imageCount > 0 ? `${imageCount} foto(s) selecionada(s). A primeira é a capa.` : "Nenhuma foto adicionada."}</dd>
+                  </div>
+                </dl>
+
+                <p className={styles.note}>
+                  {isOrg ? "O anúncio será enviado para aprovação da própria imobiliária antes de aparecer na busca." : "Após a validação dos campos, seu anúncio será publicado diretamente, sem aprovação editorial prévia."} A verificação da imobiliária é independente e não garante a autenticidade do imóvel.
+                </p>
+              </div>
+            </div>
+          </div>
+        )}
+      </div>
 
       {/* ── BARRA FIXA DE NAVEGAÇÃO INFERIOR ── */}
-      <div ref={footerRef} className={styles.wizardNavFooter}>
-        {draftMessage && <p className={styles.actionStatus} role="status">{draftMessage}</p>}
-        <div className={styles.wizardNavContainer}>
-          {stepIndex > 0 ? (
-            <button type="button" onClick={handlePrev} className={styles.secondaryButton}>
-              <ArrowLeft size={16} />
+      <div ref={footerRef} className={styles.footer}>
+        {draftMessage && <p className={styles.footerStatus} role="status">{draftMessage}</p>}
+        <div className={styles.footerInner}>
+          {stepIndex > 0 && (
+            <button type="button" onClick={handlePrev} className={styles.btnSecondary}>
+              <ArrowLeft size={16} aria-hidden="true" />
               <span>Voltar</span>
             </button>
-          ) : (
-            <div />
           )}
 
-          <div className={styles.wizardNavRight}>
-            <button type="button" className={styles.secondaryButton} onClick={() => openSidebar()} aria-label="Abrir Mensagens"><MessageCircle size={16} />Mensagens{unreadCount > 0 ? ` (${unreadCount})` : ""}</button>
-            <button type="button" className={styles.secondaryButton} disabled={pending || savingDraft} onClick={saveDraft}><Save size={16} />{savingDraft ? "Salvando…" : "Salvar rascunho"}</button>
+          <div className={styles.footerRight}>
+            <button type="button" className={styles.btnSecondary} onClick={() => openSidebar()} aria-label="Abrir Mensagens" title="Mensagens">
+              <MessageCircle size={16} aria-hidden="true" /><span className={styles.hideSm}>Mensagens{unreadCount > 0 ? ` (${unreadCount})` : ""}</span>
+            </button>
+            <button type="button" className={styles.btnSecondary} disabled={pending || savingDraft} onClick={saveDraft} title="Salvar rascunho">
+              {savingDraft ? <LoaderCircle size={16} className={styles.spin} aria-hidden="true" /> : <Save size={16} aria-hidden="true" />}
+              <span className={styles.hideSm}>{savingDraft ? "Salvando…" : "Salvar rascunho"}</span>
+            </button>
             {!isLastStep ? (
-              <button type="button" onClick={validateAndNext} className={styles.button}>
+              <button type="button" onClick={validateAndNext} className={styles.btnPrimary}>
                 <span>Continuar</span>
-                <ArrowRight size={16} />
+                <ArrowRight size={16} aria-hidden="true" />
               </button>
             ) : (
-              <>
-
-                <button type="submit" name="intent" value="publish" className={styles.button} disabled={pending}>
-                  <CheckCircle2 size={16} />
-                  <span>{pending ? "Publicando…" : "Publicar anúncio"}</span>
-                </button>
-              </>
+              <button type="submit" name="intent" value="publish" className={styles.btnPrimary} disabled={pending}>
+                {pending ? <LoaderCircle size={16} className={styles.spin} aria-hidden="true" /> : <CheckCircle2 size={16} aria-hidden="true" />}
+                <span>{pending ? "Publicando…" : "Publicar anúncio"}</span>
+              </button>
             )}
           </div>
         </div>

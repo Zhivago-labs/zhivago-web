@@ -2,7 +2,7 @@ const assert=require('node:assert/strict');const fs=require('node:fs');const pat
 module.exports=async(c,until)=>{
  const check=async(expr,msg)=>{assert(await c.eval(expr),msg);console.log('PASS',msg)};
  const wait=async(text)=>until(()=>c.eval(`document.body.innerText.toLocaleLowerCase().includes(${JSON.stringify(text)}.toLocaleLowerCase())`));
- const click=async(text)=>{await c.eval(`(()=>{const el=[...document.querySelectorAll('button,a')].find(e=>e.getClientRects().length && (e.textContent.trim()===${JSON.stringify(text)} || e.querySelector("p")?.textContent.trim()===${JSON.stringify(text)}));if(!el)throw new Error('Missing button '+${JSON.stringify(text)});el.click()})()`);await new Promise(r=>setTimeout(r,250));};
+ const click=async(text)=>{await c.eval(`(()=>{const el=[...document.querySelectorAll('button,a')].find(e=>e.getClientRects().length && (e.textContent.trim()===${JSON.stringify(text)} || e.querySelector("p,[data-choice-title]")?.textContent.trim()===${JSON.stringify(text)}));if(!el)throw new Error('Missing button '+${JSON.stringify(text)});el.click()})()`);await new Promise(r=>setTimeout(r,250));};
  const fill=async(id,value)=>{await c.eval(`(()=>{const el=document.getElementById(${JSON.stringify(id)});if(!el)throw new Error('Missing input '+${JSON.stringify(id)});Object.getOwnPropertyDescriptor(HTMLInputElement.prototype,'value').set.call(el,${JSON.stringify(value)});el.dispatchEvent(new Event('input',{bubbles:true}));el.dispatchEvent(new Event('change',{bubbles:true}));})()`);};
  await c.send('Network.clearBrowserCookies');
  await c.go('http://localhost:3100');await wait('Imóveis em destaque');
@@ -14,7 +14,7 @@ module.exports=async(c,until)=>{
  await check('new URLSearchParams(location.search).get("next") === "/anuncios/novo"','Cadastro preserva destino');
  await check('document.querySelector("[aria-pressed=true]").textContent.includes("Pessoa Física")','Pessoa Física é o perfil inicial');
  for(const [id,value] of [['name','Teste Local'],['email','teste@example.invalid'],['password','teste1234'],['confirmPassword','teste1234']]) await fill(id,value);
- await click('Concordar e continuar');await wait('Etapa 1 de 5');
+ await click('Concordar e continuar');await wait('Etapa 1 de 6');
  await check('location.pathname === "/anuncios/novo" && !document.body.innerText.includes("Carregando área da imobiliária") && !document.querySelector("[class*=Workspace_sidebar]")','Cadastro de pessoa física retorna ao anúncio sem sidebar empresarial');
  await click('Continuar');await wait('Informe o título do imóvel.');
  await check('document.activeElement.id === "name" && document.querySelector("#name").getAttribute("aria-invalid") === "true"','Título vazio impede avanço, com erro associado e foco');
@@ -28,15 +28,18 @@ module.exports=async(c,until)=>{
  for(const [id,value] of [['cep','35160000'],['cidade','Ipatinga'],['uf','MG']]) await fill(id,value);
  await click('Continuar');await wait('Preço de venda');
  await click('Continuar');await wait('Informe um preço maior que zero.');await check('document.activeElement.id === "price"','Preço vazio impede avanço e recebe foco');
- await fill('price','250000');await click('Continuar');await wait('Revise antes de publicar');
- await check('document.body.innerText.includes("ETAPA 5 DE 5") && !document.body.innerText.includes("% concluído")','Etapas sequenciais e progresso sem percentual de preenchimento');
- await check('document.body.innerText.includes("Pendências para publicar") && document.body.innerText.includes("Adicione ao menos uma foto.")','Revisão lista pendência de foto');
- await click('Publicar anúncio');await wait('Adicione ao menos uma foto.');
+ await fill('price','250000');await click('Continuar');await wait('Adicione as fotos');
+ await check('document.body.innerText.includes("ETAPA 5 DE 6") && !document.body.innerText.includes("% concluído")','Etapas sequenciais e progresso sem percentual de preenchimento');
+ await click('Continuar');await wait('Adicione ao menos uma foto.');await check('document.activeElement.id === "photos"','Sem foto impede avanço e foca a área de fotos');
+ await c.eval('[...document.querySelectorAll("button[class*=stepperTab]")].at(-1).click()');await wait('Revise antes de publicar');
+ await check('document.body.innerText.includes("ETAPA 6 DE 6") && document.body.innerText.includes("Pendências para publicar") && document.body.innerText.includes("Adicione ao menos uma foto.")','Revisão lista pendência de foto');
+ await click('Publicar anúncio');await wait('Adicione as fotos');await check('document.activeElement.id === "photos" && document.body.innerText.includes("Adicione ao menos uma foto.")','Publicar sem foto volta para Fotos com o erro em destaque');
  const img=Buffer.from('iVBORw0KGgoAAAANSUhEUgAAAAEAAAABCAQAAAC1HAwCAAAAC0lEQVR42mP8/x8AAwMCAO+/lS8AAAAASUVORK5CYII=','base64');fs.writeFileSync('.tmp/journey-photo-a.png',img);fs.writeFileSync('.tmp/journey-photo-b.png',img);
  const doc=await c.send('DOM.getDocument');const input=await c.send('DOM.querySelector',{nodeId:doc.root.nodeId,selector:'input[type=file]'});
  await c.send('DOM.setFileInputFiles',{nodeId:input.nodeId,files:[path.resolve('.tmp/journey-photo-a.png'),path.resolve('.tmp/journey-photo-b.png')]});await wait('2 foto(s) selecionada(s)');
  await click('Usar como capa');await click('Voltar');await click('Continuar');await wait('2 foto(s) selecionada(s)');
  await check('document.querySelector("input[type=file]").files[0].name === "journey-photo-b.png"','Fotos e capa sobrevivem à navegação entre etapas');
+ await click('Continuar');await wait('Revise antes de publicar');await check('document.querySelector("[class*=gallery] > img")?.src.startsWith("blob:") && document.querySelectorAll("[class*=thumbBtn]").length === 2','Prévia final mostra as fotos enviadas');
  await click('Salvar rascunho');await wait('Rascunho salvo neste navegador');await c.go('http://localhost:3100/anuncios/novo');await wait('Recuperar rascunho deste navegador');await click('Recuperar rascunho deste navegador');await wait('2 foto(s) selecionada(s)');
  await check('document.querySelector("input[type=file]").files.length === 2 && document.querySelector("input[name=price]").value === "250000"','Rascunho recupera valores e arquivos após recarregar');
  // Publication is intercepted by a local mock; no production API or database participates.
@@ -54,14 +57,14 @@ module.exports=async(c,until)=>{
  await c.eval('document.querySelectorAll("button[class*=stepperTab]")[3].click()');await wait('Garantias aceitas');
  await check('document.querySelector("#iptuMonthly") && !document.querySelector("#iptuAnnual")','Mensal exibe IPTU mensal e garantias');
  await c.eval('document.querySelectorAll("button[class*=stepperTab]")[0].click()');await click('Aluguel por Diária');await c.eval('document.querySelectorAll("button[class*=stepperTab]")[3].click()');await wait('Segurança & Proteção');
- await check('[...document.querySelectorAll("#safety select")].every(e=>e.value === "")','Segurança inicia como não informada');
+ await check('document.querySelectorAll("#safety input[type=radio]").length === 10 && !document.querySelector("#safety input[type=radio]:checked")','Segurança inicia como não informada');
  await click('Continuar');await wait('Informe se o imóvel possui cada item de segurança.');
  await check('!!(document.querySelector("#customMaxGuests") && document.querySelector("#minimumNights") && document.querySelector("#cleaningFee"))','Temporada preserva hóspedes, estadia mínima e limpeza');
  await c.send('Network.clearBrowserCookies');
  await c.go('http://localhost:3100/login?next=%2Fanuncios%2Fnovo');
  await wait('Entre para cadastrar seu imóvel');
  await fill('email','teste@example.invalid'); await fill('password','teste1234'); await click('Continuar');
- await wait('Etapa 1 de 5');
+ await wait('Etapa 1 de 6');
  await check('location.pathname === "/anuncios/novo"','Login por e-mail retorna ao anúncio');
  console.log('Browser journey completed against local mock API.');
 };
