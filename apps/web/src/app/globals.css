@@ -18,6 +18,17 @@
   --accent-contrast: #ffffff;
   --accent-light: #fff1f2;
   --accent-light-border: #fecdd3;
+
+  /* Rosa da marca (cor secundária) — uso pontual em ações e seleções.
+     Branco sobre --brand-pink = 4,51:1 (AA). Texto rosa sobre --brand-pink-light usa
+     --brand-pink-text (5,27:1), porque o #e61e4d puro ficaria em 4,11:1. */
+  --brand-pink: #e61e4d;
+  --brand-pink-hover: #c8143f;
+  --brand-pink-pressed: #a8102f;
+  --brand-pink-text: #c8143f;
+  --brand-pink-light: #fff1f3;
+  --brand-pink-light-hover: #ffe4ea;
+  --brand-pink-ring: rgba(230, 30, 77, 0.35);
   --error: #e11d48;
   --success: #16a34a;
   --warning: #d97706;

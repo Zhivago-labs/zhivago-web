@@ -18,13 +18,24 @@
 .button:hover {
   transform: scale(1.1);
   background: #ffffff;
-  color: var(--accent);
+  color: var(--brand-pink);
+}
+
+.button:active,
+.labeled:active {
+  transform: scale(0.94);
+}
+
+.button:focus-visible,
+.labeled:focus-visible {
+  outline: 2px solid var(--brand-pink);
+  outline-offset: 2px;
 }
 
 .active {
   background: #ffffff;
-  color: var(--accent) !important;
-  box-shadow: 0 4px 12px rgba(255, 56, 92, 0.25);
+  color: var(--brand-pink) !important;
+  box-shadow: 0 4px 12px rgba(230, 30, 77, 0.28);
 }
 
 .heartOutline {
@@ -33,8 +44,8 @@
 }
 
 .heartFilled {
-  fill: var(--accent);
-  stroke: var(--accent);
+  fill: var(--brand-pink);
+  stroke: var(--brand-pink);
   animation: heartPulse 0.3s cubic-bezier(0.175, 0.885, 0.32, 1.275);
 }
 
@@ -70,4 +81,16 @@
 .labeled:hover {
   border-color: var(--border-hover);
   background: var(--hover-bg);
+}
+
+.labeled.active {
+  border-color: var(--brand-pink);
+  background: var(--brand-pink-light);
+  color: var(--brand-pink-text) !important;
+  box-shadow: none;
+}
+
+@media (prefers-reduced-motion: reduce) {
+  .button:hover, .button:active, .labeled:active { transform: none; }
+  .heartFilled { animation: none; }
 }

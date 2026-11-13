@@ -197,10 +197,15 @@
   font-size: 14px;
   font-weight: 600;
   color: #ffffff;
-  background: var(--accent);
+  background: var(--brand-pink);
   border-radius: var(--radius-sm, 6px);
   text-align: center;
+  transition: background 0.15s ease;
 }
+
+.mobileSignUpBtn:hover { background: var(--brand-pink-hover); }
+.mobileSignUpBtn:active { background: var(--brand-pink-pressed); }
+.mobileSignUpBtn:focus-visible { outline: 2px solid var(--brand-pink); outline-offset: 2px; box-shadow: 0 0 0 4px var(--brand-pink-ring); }
 
 .mobileDivider {
   height: 1px;
@@ -326,14 +331,24 @@
   font-size: 13.5px;
   font-weight: 600;
   color: #ffffff;
-  background: var(--foreground);
+  background: var(--brand-pink);
   padding: 7px 14px;
   border-radius: var(--radius-sm, 6px);
-  transition: background 0.15s ease;
+  transition: background 0.15s ease, box-shadow 0.15s ease;
 }
 
 .signUpButton:hover {
-  background: #1e293b;
+  background: var(--brand-pink-hover);
+}
+
+.signUpButton:active {
+  background: var(--brand-pink-pressed);
+}
+
+.signUpButton:focus-visible {
+  outline: 2px solid var(--brand-pink);
+  outline-offset: 2px;
+  box-shadow: 0 0 0 4px var(--brand-pink-ring);
 }
 
 .divider {

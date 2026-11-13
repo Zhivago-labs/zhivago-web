@@ -193,14 +193,20 @@
   border-color: var(--border-hover);
 }
 
+.chip:active {
+  transform: scale(0.98);
+}
+
+/* Filtro selecionado: rosa claro com borda e texto rosa da marca. */
 .chipActive {
-  background: var(--foreground);
-  border-color: var(--foreground);
-  color: var(--background);
+  background: var(--brand-pink-light);
+  border-color: var(--brand-pink);
+  color: var(--brand-pink-text);
 }
 
 .chipActive:hover {
-  opacity: 0.9;
+  background: var(--brand-pink-light-hover);
+  border-color: var(--brand-pink-hover);
 }
 
 .advancedToggleBtn {
@@ -223,13 +229,24 @@
   border-color: var(--border-hover);
 }
 
+.advancedToggleBtn:active {
+  transform: scale(0.98);
+}
+
+/* "Mais filtros" com filtros adicionais ativos. */
 .advancedToggleActive {
-  border-color: var(--accent);
-  color: var(--accent);
+  border-color: var(--brand-pink);
+  color: var(--brand-pink);
+}
+
+.advancedToggleActive:hover {
+  border-color: var(--brand-pink-hover);
+  color: var(--brand-pink-hover);
+  background: var(--brand-pink-light);
 }
 
 .activeBadge {
-  background: var(--accent);
+  background: var(--brand-pink);
   color: #ffffff;
   font-size: 11px;
   font-weight: 800;
@@ -413,9 +430,19 @@
 }
 
 .numBtnActive {
-  background: var(--foreground);
-  border-color: var(--foreground);
-  color: var(--background);
+  background: var(--brand-pink-light);
+  border-color: var(--brand-pink);
+  color: var(--brand-pink-text);
+}
+
+.numBtnActive:hover {
+  background: var(--brand-pink-light-hover);
+  border-color: var(--brand-pink-hover);
+}
+
+.numBtn:active,
+.amenityBtn:active {
+  transform: scale(0.98);
 }
 
 .amenitiesGrid {
@@ -445,9 +472,14 @@
 }
 
 .amenityBtnActive {
-  background: var(--accent-light);
-  border-color: var(--accent-light-border);
-  color: var(--accent);
+  background: var(--brand-pink-light);
+  border-color: var(--brand-pink);
+  color: var(--brand-pink-text);
+}
+
+.amenityBtnActive:hover {
+  background: var(--brand-pink-light-hover);
+  border-color: var(--brand-pink-hover);
 }
 
 .modalFooter {
@@ -709,7 +741,8 @@
 .publicExplorer .sortSelect { min-height: 44px; font-size: 14px; }
 .publicExplorer .resultsHeader { scroll-margin-top: 100px; }
 .publicExplorer .grid { grid-template-columns: repeat(4, minmax(0, 1fr)); }
-.publicExplorer :focus-visible { outline: 2px solid var(--accent); outline-offset: 3px; }
+.publicExplorer :focus-visible { outline: 2px solid var(--brand-pink); outline-offset: 3px; }
+@media (prefers-reduced-motion: reduce) { .chip:active, .advancedToggleBtn:active, .numBtn:active, .amenityBtn:active { transform: none; } }
 .publicExplorer .recentSection { padding-top: 24px; border-top: 1px solid var(--border); }
 @media (max-width: 1199px) { .publicExplorer .grid { grid-template-columns: repeat(3, minmax(0, 1fr)); } }
 @media (max-width: 1023px) { .publicExplorer .grid { grid-template-columns: repeat(2, minmax(0, 1fr)); gap: 20px; } }
