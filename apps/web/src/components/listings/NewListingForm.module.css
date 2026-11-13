@@ -1620,3 +1620,19 @@
 .stepEnter[hidden] {
   display: none;
 }
+
+/* CEP: campo + botão "Buscar CEP" lado a lado */
+.cepRow {
+  display: flex;
+  gap: 8px;
+}
+
+.cepRow .input {
+  flex: 1;
+  min-width: 0;
+}
+
+.cepButton {
+  min-height: 46px;
+  flex-shrink: 0;
+}

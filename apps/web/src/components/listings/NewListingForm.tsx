@@ -39,6 +39,7 @@ import {
   ImagePlus,
   X,
   RotateCcw,
+  Search,
 } from "lucide-react";
 import { useChatSocket } from "@/components/chat/ChatSocketProvider";
 import { listingDraft } from "@/lib/listing-draft";
@@ -511,9 +512,9 @@ export function NewListingForm({ myOrg, buildings, userId }: { myOrg: MyOrganiza
   };
 
   // Consulta o ViaCEP assim que o CEP tem 8 dígitos (e de novo ao sair do campo, se mudou).
-  const lookupCep = async (value: string) => {
+  const lookupCep = async (value: string, force = false) => {
     const cleanCep = value.replace(/\D/g, "");
-    if (cleanCep.length !== 8 || cleanCep === lastCepLookup.current) return;
+    if (cleanCep.length !== 8 || (!force && cleanCep === lastCepLookup.current)) return;
     lastCepLookup.current = cleanCep;
     setCepStatus("loading");
     try {
@@ -947,6 +948,7 @@ export function NewListingForm({ myOrg, buildings, userId }: { myOrg: MyOrganiza
               <div className={styles.fields}>
                 <div className={styles.grid2}>
                   <Field id="cep" label="CEP" required error={cepError} hint={cepHint}>
+                    <div className={styles.cepRow}>
                     <input
                       id="cep"
                       type="text"
@@ -960,6 +962,21 @@ export function NewListingForm({ myOrg, buildings, userId }: { myOrg: MyOrganiza
                       className={`${styles.input} ${cepStatus === "found" && !cepError ? styles.inputValid : ""}`}
                       {...describe("cep", cepError, true)}
                     />
+                    {/* Busca manual: força nova consulta ao ViaCEP (ex.: a automática falhou ou o endereço foi apagado). */}
+                    <button
+                      type="button"
+                      className={`${styles.btnSecondary} ${styles.cepButton}`}
+                      disabled={cepStatus === "loading"}
+                      onClick={() => {
+                        touch("cep");
+                        if (cep.replace(/\D/g, "").length !== 8) { focusField("cep"); return; }
+                        void lookupCep(cep, true);
+                      }}
+                    >
+                      {cepStatus === "loading" ? <LoaderCircle size={16} className={styles.spin} aria-hidden="true" /> : <Search size={16} aria-hidden="true" />}
+                      {cepStatus === "loading" ? "Buscando…" : "Buscar CEP"}
+                    </button>
+                    </div>
                   </Field>
                 </div>
 
