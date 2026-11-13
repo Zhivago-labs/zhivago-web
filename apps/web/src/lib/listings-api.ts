@@ -21,6 +21,11 @@ export interface OwnedListing {
   parking: number;
   amenities?: string | null;
   status: string;
+  /** Motivo informado pela moderação quando o anúncio é rejeitado. */
+  rejectReason?: string | null;
+  bairro?: string | null;
+  cidade?: string | null;
+  uf?: string | null;
   viewCount: number;
   _count: { conversations: number; leads?: number };
   createdAt: string;

@@ -330,6 +330,7 @@ export async function publishListingAction(
     return { error: extractErrorMessage(data, "Não foi possível publicar o anúncio.") };
   }
 
+  revalidatePath("/meus-anuncios");
   revalidatePath("/dashboard");
 }
 
@@ -351,6 +352,7 @@ export async function unpublishListingAction(
     return { error: extractErrorMessage(data, "Não foi possível despublicar o anúncio.") };
   }
 
+  revalidatePath("/meus-anuncios");
   revalidatePath("/dashboard");
 }
 
@@ -540,6 +542,7 @@ export async function relistListingAction(
     return { error: extractErrorMessage(data, "Não foi possível disponibilizar o imóvel de novo.") };
   }
 
+  revalidatePath("/meus-anuncios");
   revalidatePath("/dashboard");
 }
 
