@@ -26,7 +26,9 @@ export function FloatingChatButton() {
   }, []);
 
   // Oculta se estiver nas telas de auth, se o chat já estiver aberto ou se o visualizador de fotos estiver ativo
-  if (HIDDEN_ROUTES.includes(pathname) || isSidebarOpen || photoViewerOpen) {
+  // O assistente de edição já tem o próprio botão Mensagens na barra de ações (como o cadastro).
+  const isListingEditor = /^\/anuncios\/[^/]+\/editar$/.test(pathname);
+  if (HIDDEN_ROUTES.includes(pathname) || isListingEditor || isSidebarOpen || photoViewerOpen) {
     return null;
   }
 

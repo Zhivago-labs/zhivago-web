@@ -45,8 +45,9 @@ import { useChatSocket } from "@/components/chat/ChatSocketProvider";
 import { listingDraft } from "@/lib/listing-draft";
 import type { MyOrganization } from "@/lib/organizations-api";
 import { createOrganizationBuildingAction, type CreateBuildingState } from "@/lib/actions/organizations";
-import { createListingAction } from "@/lib/actions/listings";
-import { MultiImageInput } from "./MultiImageInput";
+import { createListingAction, updateListingAction } from "@/lib/actions/listings";
+import type { Listing } from "@zhivago/shared";
+import { MultiImageInput, photoOrderTokens, type PhotoItem } from "./MultiImageInput";
 import { AmenitiesSelector, AVAILABLE_AMENITIES } from "./AmenitiesSelector";
 import styles from "./NewListingForm.module.css";
 
@@ -122,6 +123,16 @@ const formatCep = (value: string) => {
   return digits.length > 5 ? `${digits.slice(0, 5)}-${digits.slice(5)}` : digits;
 };
 const plural = (n: number, one: string, many: string) => `${n} ${n === 1 ? one : many}`;
+
+/* ───────────────────────── Leitura de um anúncio salvo (modo edição) ───────────────────────── */
+
+function parseJson<T>(value: string | null | undefined, fallback: T): T {
+  if (!value) return fallback;
+  try { return (JSON.parse(value) as T) ?? fallback; } catch { return fallback; }
+}
+/** Item de segurança só vale se foi respondido; ausente continua "não informado" (nada é inventado). */
+const answered = (value: unknown): boolean | null => (typeof value === "boolean" ? value : null);
+const numText = (value: number | null | undefined) => (value != null ? String(value) : "");
 
 /* ───────────────────────── Peças de interface ───────────────────────── */
 
@@ -293,8 +304,20 @@ function NewBuildingInlineForm({ onCreated, onCancel }: { onCreated: (b: Buildin
 
 /* ───────────────────────── Formulário ───────────────────────── */
 
-export function NewListingForm({ myOrg, buildings, userId }: { myOrg: MyOrganization | null; buildings: BuildingOption[]; userId: string }) {
-  const [state, formAction, pending] = useActionState(createListingAction, undefined);
+export function NewListingForm({ myOrg, buildings, userId, listing, returnTo }: {
+  myOrg: MyOrganization | null;
+  buildings: BuildingOption[];
+  userId: string;
+  /** Quando informado, o assistente edita este anúncio em vez de criar um novo. */
+  listing?: Listing;
+  /** Para onde voltar depois de salvar a edição. */
+  returnTo?: string;
+}) {
+  const isEdit = !!listing;
+  const [state, formAction, pending] = useActionState(isEdit ? updateListingAction : createListingAction, undefined);
+  const initialModality: Modality = listing?.operationType === "SALE" ? "venda" : listing?.operationType === "MONTHLY_RENT" ? "mensal" : "diaria";
+  const savedRules = parseJson<Record<string, unknown>>(listing?.houseRules, {});
+  const savedSafety = parseJson<Record<string, unknown>>(listing?.safetyItems, {});
   const { openSidebar, unreadCount } = useChatSocket();
 
   // A barra de ações é fixa; o formulário reserva espaço igual à altura dela para nada ficar escondido.
@@ -314,11 +337,12 @@ export function NewListingForm({ myOrg, buildings, userId }: { myOrg: MyOrganiza
   const [draftRevision, setDraftRevision] = useState(0);
   const filesRef = useRef<File[]>([]);
   const [savingDraft, setSavingDraft] = useState(false);
-  const [structureConfirmed, setStructureConfirmed] = useState(false);
+  const [structureConfirmed, setStructureConfirmed] = useState(isEdit);
 
   // Controle de Etapa (Wizard)
   const [currentStep, updateCurrentStep] = useState(1);
-  const [visitedSteps, setVisitedSteps] = useState<number[]>([1]);
+  // Na edição o anúncio já está preenchido: todas as etapas contam como vistas (ficam ✓ se não houver pendência).
+  const [visitedSteps, setVisitedSteps] = useState<number[]>(() => (isEdit ? ALL_STEPS.map((step) => step.id) : [1]));
   const setCurrentStep = (next: number) => {
     updateCurrentStep(next);
     setVisitedSteps(previous => previous.includes(next) ? previous : [...previous, next]);
@@ -331,8 +355,8 @@ export function NewListingForm({ myOrg, buildings, userId }: { myOrg: MyOrganiza
   const markAttempted = (step: number) => setAttemptedSteps(previous => previous.includes(step) ? previous : [...previous, step]);
 
   // Estados dos seletores
-  const [type, setType] = useState<"casa" | "apartamento">("casa");
-  const [modality, setModality] = useState<Modality>("diaria");
+  const [type, setType] = useState<"casa" | "apartamento">(listing?.type === "apartamento" ? "apartamento" : "casa");
+  const [modality, setModality] = useState<Modality>(initialModality);
   const category = modality === "venda" ? "venda" : "aluguel";
   const billingCycle = modality === "diaria" ? "noite" : modality === "mensal" ? "mês" : "noite";
   const operationType = modality === "venda" ? "SALE" : modality === "mensal" ? "MONTHLY_RENT" : "DAILY_RENT";
@@ -346,75 +370,75 @@ export function NewListingForm({ myOrg, buildings, userId }: { myOrg: MyOrganiza
   );
 
   // Título e Descrição
-  const [name, setName] = useState("");
-  const [description, setDescription] = useState("");
+  const [name, setName] = useState(listing?.name ?? "");
+  const [description, setDescription] = useState(listing?.description ?? "");
 
   // Características
-  const [bedrooms, setBedrooms] = useState(0);
-  const [suites, setSuites] = useState(0);
-  const [bathrooms, setBathrooms] = useState(0);
-  const [parking, setParking] = useState(0);
-  const [privateArea, setPrivateArea] = useState("");
-  const [totalArea, setTotalArea] = useState("");
+  const [bedrooms, setBedrooms] = useState(listing?.bedrooms ?? 0);
+  const [suites, setSuites] = useState(listing?.suites ?? 0);
+  const [bathrooms, setBathrooms] = useState(listing?.bathrooms ?? 0);
+  const [parking, setParking] = useState(listing?.parking ?? 0);
+  const [privateArea, setPrivateArea] = useState(numText(listing?.privateArea));
+  const [totalArea, setTotalArea] = useState(numText(listing?.totalArea));
 
   // Seção 61 da spec: nunca começar com comodidades pré-marcadas — o anunciante escolhe tudo.
-  const [amenities, setAmenities] = useState<string[]>([]);
+  const [amenities, setAmenities] = useState<string[]>(() => parseJson<string[]>(listing?.amenities, []));
 
   // Estados de Regras e Segurança (só DAILY_RENT)
-  const [checkInTime, setCheckInTime] = useState("15:00");
-  const [checkOutTime, setCheckOutTime] = useState("11:00");
-  const [customMaxGuests, setCustomMaxGuests] = useState(2);
-  const [minimumNights, setMinimumNights] = useState("1");
-  const [cleaningFee, setCleaningFee] = useState("");
-  const [allowPetsDaily, setAllowPetsDaily] = useState(false);
-  const [allowSmoking, setAllowSmoking] = useState(false);
-  const [allowParties, setAllowParties] = useState(false);
-  const [quietHours, setQuietHours] = useState("22:00 às 08:00");
-  const [customNotes, setCustomNotes] = useState("");
+  const [checkInTime, setCheckInTime] = useState(listing?.checkInTime ?? "15:00");
+  const [checkOutTime, setCheckOutTime] = useState(listing?.checkOutTime ?? "11:00");
+  const [customMaxGuests, setCustomMaxGuests] = useState(listing?.customMaxGuests ?? 2);
+  const [minimumNights, setMinimumNights] = useState(listing?.minimumNights != null ? String(listing.minimumNights) : "1");
+  const [cleaningFee, setCleaningFee] = useState(numText(listing?.cleaningFee));
+  const [allowPetsDaily, setAllowPetsDaily] = useState(savedRules.allowPets === true);
+  const [allowSmoking, setAllowSmoking] = useState(savedRules.allowSmoking === true);
+  const [allowParties, setAllowParties] = useState(savedRules.allowParties === true);
+  const [quietHours, setQuietHours] = useState(typeof savedRules.quietHours === "string" ? savedRules.quietHours : "22:00 às 08:00");
+  const [customNotes, setCustomNotes] = useState(typeof savedRules.customNotes === "string" ? savedRules.customNotes : "");
 
-  const [externalCameras, setExternalCameras] = useState<boolean | null>(null);
-  const [smokeAlarm, setSmokeAlarm] = useState<boolean | null>(null);
-  const [fireExtinguisher, setFireExtinguisher] = useState<boolean | null>(null);
-  const [doorman24h, setDoorman24h] = useState<boolean | null>(null);
-  const [firstAidKit, setFirstAidKit] = useState<boolean | null>(null);
+  const [externalCameras, setExternalCameras] = useState<boolean | null>(answered(savedSafety.externalCameras));
+  const [smokeAlarm, setSmokeAlarm] = useState<boolean | null>(answered(savedSafety.smokeAlarm));
+  const [fireExtinguisher, setFireExtinguisher] = useState<boolean | null>(answered(savedSafety.fireExtinguisher));
+  const [doorman24h, setDoorman24h] = useState<boolean | null>(answered(savedSafety.doorman24h));
+  const [firstAidKit, setFirstAidKit] = useState<boolean | null>(answered(savedSafety.firstAidKit));
 
-  const [cancellationPolicy, setCancellationPolicy] = useState<"FLEXIBLE" | "MODERATE" | "STRICT">("FLEXIBLE");
+  const [cancellationPolicy, setCancellationPolicy] = useState<"FLEXIBLE" | "MODERATE" | "STRICT">(listing?.cancellationPolicy === "MODERATE" || listing?.cancellationPolicy === "STRICT" ? listing.cancellationPolicy : "FLEXIBLE");
 
   // Condições de VENDA (seção 66)
-  const [condoFee, setCondoFee] = useState("");
-  const [iptuAnnual, setIptuAnnual] = useState("");
-  const [acceptsFinancing, setAcceptsFinancing] = useState(false);
-  const [acceptsExchange, setAcceptsExchange] = useState(false);
+  const [condoFee, setCondoFee] = useState(numText(listing?.condoFee));
+  const [iptuAnnual, setIptuAnnual] = useState(numText(listing?.iptuAnnual));
+  const [acceptsFinancing, setAcceptsFinancing] = useState(listing?.acceptsFinancing ?? false);
+  const [acceptsExchange, setAcceptsExchange] = useState(listing?.acceptsExchange ?? false);
 
   // Condições de ALUGUEL MENSAL (seção 67) — condoFee é compartilhado com venda acima
-  const [iptuMonthly, setIptuMonthly] = useState("");
-  const [availableFrom, setAvailableFrom] = useState("");
-  const [minimumLeaseMonths, setMinimumLeaseMonths] = useState("");
-  const [guaranteeTypes, setGuaranteeTypes] = useState<string[]>([]);
-  const [isFurnished, setIsFurnished] = useState(false);
-  const [allowPetsMonthly, setAllowPetsMonthly] = useState(false);
+  const [iptuMonthly, setIptuMonthly] = useState(numText(listing?.iptuMonthly));
+  const [availableFrom, setAvailableFrom] = useState(listing?.availableFrom ? listing.availableFrom.slice(0, 10) : "");
+  const [minimumLeaseMonths, setMinimumLeaseMonths] = useState(numText(listing?.minimumLeaseMonths));
+  const [guaranteeTypes, setGuaranteeTypes] = useState<string[]>(() => parseJson<string[]>(listing?.guaranteeTypes, []));
+  const [isFurnished, setIsFurnished] = useState(listing?.isFurnished ?? false);
+  const [allowPetsMonthly, setAllowPetsMonthly] = useState(listing?.allowPets ?? false);
 
   // Preço e Endereço
-  const [price, setPrice] = useState("");
+  const [price, setPrice] = useState(listing?.price ? String(listing.price) : "");
   // Negociação de valor no chat — piso opcional e sigiloso
-  const [acceptsNegotiation, setAcceptsNegotiation] = useState(false);
-  const [minNegotiablePrice, setMinNegotiablePrice] = useState("");
-  const [cep, setCep] = useState("");
-  const [logradouro, setLogradouro] = useState("");
-  const [numero, setNumero] = useState("");
-  const [complemento, setComplemento] = useState("");
-  const [bairro, setBairro] = useState("");
-  const [cidade, setCidade] = useState("");
-  const [uf, setUf] = useState("");
+  const [acceptsNegotiation, setAcceptsNegotiation] = useState(listing?.acceptsNegotiation ?? false);
+  const [minNegotiablePrice, setMinNegotiablePrice] = useState(numText(listing?.minNegotiablePrice));
+  const [cep, setCep] = useState(listing?.cep ?? "");
+  const [logradouro, setLogradouro] = useState(listing?.logradouro ?? "");
+  const [numero, setNumero] = useState(listing?.numero ?? "");
+  const [complemento, setComplemento] = useState(listing?.complemento ?? "");
+  const [bairro, setBairro] = useState(listing?.bairro ?? "");
+  const [cidade, setCidade] = useState(listing?.cidade ?? "");
+  const [uf, setUf] = useState(listing?.uf ?? "");
   const [cepStatus, setCepStatus] = useState<CepStatus>("idle");
   const lastCepLookup = useRef("");
 
   // Empreendimento + Atendimento/CRM (seção 8/63/72 — só organização)
   const [buildingOptions, setBuildingOptions] = useState<BuildingOption[]>(buildings);
-  const [buildingId, setBuildingId] = useState("");
+  const [buildingId, setBuildingId] = useState(listing?.buildingId ?? "");
   const [showNewBuildingForm, setShowNewBuildingForm] = useState(false);
-  const [hasSpecificAgent, setHasSpecificAgent] = useState(false);
-  const [assignedAgentId, setAssignedAgentId] = useState("");
+  const [hasSpecificAgent, setHasSpecificAgent] = useState(!!listing?.agentId);
+  const [assignedAgentId, setAssignedAgentId] = useState(listing?.agentId ?? "");
   const [assumeBuildingLeads, setAssumeBuildingLeads] = useState(false);
   const activeMembers = useMemo(
     () => (myOrg?.organization.members ?? []).filter((m) => m.status === "ACTIVE"),
@@ -423,24 +447,18 @@ export function NewListingForm({ myOrg, buildings, userId }: { myOrg: MyOrganiza
   const canPickAgent = !myOrg || ["OWNER", "ADMIN"].includes(myOrg.role);
 
   const visibleAmenities = amenities.filter(id => !["pet_friendly", "estacionamento", "cameras"].includes(id) && (modality === "diaria" || isFurnished || !["wifi", "tv", "cafeteira", "maquina_lavar", "cozinha"].includes(id)));
-  const [imageCount, setImageCount] = useState(0);
+  const [photoItems, setPhotoItems] = useState<PhotoItem[]>([]);
+  const imageCount = photoItems.length;
+  const initialPhotos = useMemo(() => (listing?.images ?? []).map((image) => ({ id: image.id, url: image.url })), [listing]);
+  const photoOrder = photoOrderTokens(photoItems);
+  const photosChanged = isEdit && JSON.stringify(photoOrder) !== JSON.stringify(initialPhotos.map((p) => `existing:${p.id}`));
 
-  // Fotos para a prévia: URLs locais (blob:) das imagens escolhidas, na ordem atual (a 1ª é a capa).
-  const [photos, setPhotos] = useState<{ file: File; url: string }[]>([]);
-  const photoUrlsRef = useRef<string[]>([]);
+  const photos = photoItems.map((item) => ({ url: item.url }));
   const [previewIndex, setPreviewIndex] = useState(0);
-  const updatePhotos = (files: File[]) => {
-    photoUrlsRef.current.forEach(url => URL.revokeObjectURL(url));
-    const next = files.map(file => ({ file, url: URL.createObjectURL(file) }));
-    photoUrlsRef.current = next.map(photo => photo.url);
-    setPhotos(next);
-    setPreviewIndex(0);
-  };
-  useEffect(() => () => photoUrlsRef.current.forEach(url => URL.revokeObjectURL(url)), []);
 
   const snapshot = () => ({ structureConfirmed, currentStep, type, modality, name, description, bedrooms, suites, bathrooms, parking, privateArea, totalArea, amenities, checkInTime, checkOutTime, customMaxGuests, minimumNights, cleaningFee, allowPetsDaily, allowSmoking, allowParties, quietHours, customNotes, externalCameras, smokeAlarm, fireExtinguisher, doorman24h, firstAidKit, cancellationPolicy, condoFee, iptuAnnual, acceptsFinancing, acceptsExchange, iptuMonthly, availableFrom, minimumLeaseMonths, guaranteeTypes, isFurnished, allowPetsMonthly, price, acceptsNegotiation, minNegotiablePrice, cep, logradouro, numero, complemento, bairro, cidade, uf, buildingId, hasSpecificAgent, assignedAgentId, assumeBuildingLeads, files: filesRef.current });
   type DraftSnapshot = ReturnType<typeof snapshot>;
-  useEffect(() => { listingDraft<DraftSnapshot>(userId).then(d => setDraftAvailable(!!d)).catch(() => setDraftMessage("Não foi possível consultar o rascunho neste navegador.")); }, [userId]);
+  useEffect(() => { if (isEdit) return; listingDraft<DraftSnapshot>(userId).then(d => setDraftAvailable(!!d)).catch(() => setDraftMessage("Não foi possível consultar o rascunho neste navegador.")); }, [userId, isEdit]);
   const saveDraft = async () => {
     setSavingDraft(true);
     try { await listingDraft(userId, snapshot()); setDraftAvailable(true); setDraftMessage("Rascunho salvo neste navegador, incluindo as fotos. Retome por Anunciar imóvel nesta conta."); }
@@ -504,7 +522,7 @@ export function NewListingForm({ myOrg, buildings, userId }: { myOrg: MyOrganiza
       setHasSpecificAgent(draft.hasSpecificAgent);
       setAssignedAgentId(draft.assignedAgentId);
       setAssumeBuildingLeads(draft.assumeBuildingLeads);
-      filesRef.current = draft.files; setDraftFiles(draft.files); setImageCount(draft.files.length); updatePhotos(draft.files);
+      filesRef.current = draft.files; setDraftFiles(draft.files);
       setDraftRevision(previous => previous + 1);
       setDraftAvailable(false);
       setDraftMessage("Rascunho recuperado. Revise os dados antes de publicar.");
@@ -566,7 +584,7 @@ export function NewListingForm({ myOrg, buildings, userId }: { myOrg: MyOrganiza
       ...((modality === "diaria" ? [cleaningFee] : modality === "venda" ? [condoFee, iptuAnnual] : [condoFee, iptuMonthly]).some(value => value !== "" && (!Number.isFinite(Number(value)) || Number(value) < 0)) ? [{ field: "charges", message: "Encargos devem ter valores não negativos." }] : []),
       ...(modality === "diaria" && [externalCameras, smokeAlarm, fireExtinguisher, doorman24h, firstAidKit].some(v => v === null) ? [{ field: "safety", message: "Informe se o imóvel possui cada item de segurança." }] : []),
     ];
-    if (step === photosStep) return imageCount === 0 ? [{ field: "photos", message: "Adicione ao menos uma foto." }] : [];
+    if (step === photosStep) return imageCount === 0 && !(isEdit && listing?.status === "DRAFT") ? [{ field: "photos", message: "Adicione ao menos uma foto." }] : [];
     return [];
   };
   const pendingIssues = steps.flatMap(step => issuesForStep(step.id).map(issue => ({ ...issue, step: step.id })));
@@ -729,6 +747,15 @@ export function NewListingForm({ myOrg, buildings, userId }: { myOrg: MyOrganiza
       <input type="hidden" name="cidade" value={cidade} />
       <input type="hidden" name="uf" value={uf} />
       <input type="hidden" name="amenities" value={JSON.stringify(amenities)} />
+      {isEdit && (
+        <>
+          <input type="hidden" name="id" value={listing.id} />
+          <input type="hidden" name="hasOrgCrmStep" value={String(isOrg)} />
+          <input type="hidden" name="photoOrder" value={JSON.stringify(photoOrder)} />
+          <input type="hidden" name="photosChanged" value={String(photosChanged)} />
+          {returnTo && <input type="hidden" name="returnTo" value={returnTo} />}
+        </>
+      )}
 
       {/* ── TRILHA DE ETAPAS + PRÉVIA AO VIVO (desktop) ── */}
       <aside className={styles.rail} aria-label="Etapas do anúncio">
@@ -775,7 +802,7 @@ export function NewListingForm({ myOrg, buildings, userId }: { myOrg: MyOrganiza
           </div>
         )}
 
-        <p className={styles.railNote}>O rascunho fica salvo neste navegador e nesta conta. Salve antes de sair.</p>
+        <p className={styles.railNote}>{isEdit ? "Você pode salvar as alterações em qualquer etapa." : "O rascunho fica salvo neste navegador e nesta conta. Salve antes de sair."}</p>
       </aside>
 
       <div className={styles.content}>
@@ -783,7 +810,7 @@ export function NewListingForm({ myOrg, buildings, userId }: { myOrg: MyOrganiza
         <header className={styles.stepHead}>
           <p className={styles.eyebrow}>Etapa {stepIndex + 1} de {steps.length}</p>
           <h2 className={styles.stepHeading}>{activeMeta.title}</h2>
-          <p className={styles.stepLead}>{activeMeta.lead}</p>
+          <p className={styles.stepLead}>{isEdit && activeStep === reviewStep ? "Revise antes de salvar: é assim que os interessados verão o seu anúncio." : activeMeta.lead}</p>
           <div className={styles.progress} aria-hidden="true">
             {steps.map((step) => {
               const status = stepStatus(step.id);
@@ -804,10 +831,10 @@ export function NewListingForm({ myOrg, buildings, userId }: { myOrg: MyOrganiza
           <div ref={serverErrorRef} tabIndex={-1} className={styles.serverError} role="alert">
             <TriangleAlert size={20} aria-hidden="true" />
             <div className={styles.serverErrorBody}>
-              <p className={styles.serverErrorTitle}>Não foi possível publicar o anúncio</p>
+              <p className={styles.serverErrorTitle}>{isEdit ? "Não foi possível salvar as alterações" : "Não foi possível publicar o anúncio"}</p>
               <p>{serverError}</p>
               <p className={styles.serverErrorHelp}>
-                Seus dados e fotos continuam aqui. {serverErrorIsPhoto ? "Revise as fotos e tente publicar de novo." : "Confira as informações e tente publicar de novo."}
+                Seus dados e fotos continuam aqui. {serverErrorIsPhoto ? (isEdit ?"Revise as fotos e tente salvar de novo." : "Revise as fotos e tente publicar de novo.") : (isEdit ? "Confira as informações e tente salvar de novo." : "Confira as informações e tente publicar de novo.")}
               </p>
               {serverErrorIsPhoto && activeStep !== photosStep && (
                 <div className={styles.serverErrorActions}>
@@ -848,6 +875,12 @@ export function NewListingForm({ myOrg, buildings, userId }: { myOrg: MyOrganiza
         {/* ── ETAPA 1: TIPO & OBJETIVO ── */}
         {activeStep === 1 && (
           <div key="step-1" className={styles.stepEnter}>
+            {isEdit && modality !== initialModality && (
+              <p className={styles.modalityWarning} role="status">
+                <TriangleAlert size={16} aria-hidden="true" />
+                <span>Ao salvar, as condições exclusivas de <strong>{MODALITY_BADGE[initialModality].toLowerCase()}</strong> serão removidas e passam a valer as de <strong>{MODALITY_BADGE[modality].toLowerCase()}</strong>.</span>
+              </p>
+            )}
             <Card icon={Tag} title="O que você quer fazer?" subtitle="A modalidade define o restante do formulário. Se mudar depois, suas respostas ficam guardadas; só o que vale para a modalidade escolhida é enviado.">
               <div className={styles.choices}>
                 <ChoiceCard active={modality === "diaria"} onClick={() => setModality("diaria")} icon={Calendar} title="Aluguel por Diária" subtitle="Hospedagens curtas e temporada, cobradas por noite" />
@@ -1243,7 +1276,9 @@ export function NewListingForm({ myOrg, buildings, userId }: { myOrg: MyOrganiza
               name="images"
               initialFiles={draftFiles}
               error={activeStep === photosStep ? errorFor("photos") : undefined}
-              onFilesChange={(count, files) => { setImageCount(count); filesRef.current = files; updatePhotos(files); }}
+              existingPhotos={initialPhotos}
+              onFilesChange={(_count, files) => { filesRef.current = files; }}
+              onItemsChange={(items) => { setPhotoItems(items); setPreviewIndex(0); }}
             />
           </Card>
         </div>
@@ -1319,13 +1354,13 @@ export function NewListingForm({ myOrg, buildings, userId }: { myOrg: MyOrganiza
                 {pending ? (
                   <p className={styles.publishing} role="status">
                     <LoaderCircle size={18} className={styles.spin} aria-hidden="true" />
-                    Enviando fotos e dados do imóvel. Aguarde a confirmação.
+                    {isEdit ? "Salvando as alterações. Aguarde a confirmação." : "Enviando fotos e dados do imóvel. Aguarde a confirmação."}
                   </p>
                 ) : pendingIssues.length > 0 ? (
                   <div className={styles.summary} role="status">
                     <CircleAlert size={20} aria-hidden="true" />
                     <div>
-                      <p className={styles.summaryTitle}>Pendências para publicar</p>
+                      <p className={styles.summaryTitle}>{isEdit ? "Pendências para salvar" : "Pendências para publicar"}</p>
                       <ul className={styles.summaryList}>
                         {pendingIssues.map((issue) => (
                           <li key={issue.field + issue.message}>
@@ -1341,8 +1376,8 @@ export function NewListingForm({ myOrg, buildings, userId }: { myOrg: MyOrganiza
                   <div className={styles.ready}>
                     <CheckCircle2 size={20} aria-hidden="true" />
                     <div>
-                      <p className={styles.readyTitle}>Tudo pronto para publicar</p>
-                      <p>Confira a prévia e toque em “Publicar anúncio”.</p>
+                      <p className={styles.readyTitle}>{isEdit ? "Tudo pronto para salvar" : "Tudo pronto para publicar"}</p>
+                      <p>Confira a prévia e toque em “{isEdit ? "Salvar alterações" : "Publicar anúncio"}”.</p>
                     </div>
                   </div>
                 )}
@@ -1379,7 +1414,13 @@ export function NewListingForm({ myOrg, buildings, userId }: { myOrg: MyOrganiza
                   </div>
                 </dl>
 
-                <p className={styles.note}>
+                {isEdit && modality !== initialModality && (
+                  <p className={styles.modalityWarning}><TriangleAlert size={16} aria-hidden="true" /><span>A modalidade mudou de {MODALITY_BADGE[initialModality].toLowerCase()} para {MODALITY_BADGE[modality].toLowerCase()}: as condições exclusivas da anterior serão removidas.</span></p>
+                )}
+                {isEdit && photosChanged && (
+                  <p className={styles.note}>As fotos foram alteradas e serão atualizadas ao salvar.</p>
+                )}
+                <p className={styles.note} hidden={isEdit}>
                   {isOrg ? "O anúncio será enviado para aprovação da própria imobiliária antes de aparecer na busca." : "Após a validação dos campos, seu anúncio será publicado diretamente, sem aprovação editorial prévia."} A verificação da imobiliária é independente e não garante a autenticidade do imóvel.
                 </p>
               </div>
@@ -1403,11 +1444,26 @@ export function NewListingForm({ myOrg, buildings, userId }: { myOrg: MyOrganiza
             <button type="button" className={styles.btnSecondary} onClick={() => openSidebar()} aria-label="Abrir Mensagens" title="Mensagens">
               <MessageCircle size={16} aria-hidden="true" /><span className={styles.hideSm}>Mensagens{unreadCount > 0 ? ` (${unreadCount})` : ""}</span>
             </button>
-            <button type="button" className={styles.btnSecondary} disabled={pending || savingDraft} onClick={saveDraft} title="Salvar rascunho">
-              {savingDraft ? <LoaderCircle size={16} className={styles.spin} aria-hidden="true" /> : <Save size={16} aria-hidden="true" />}
-              <span className={styles.hideSm}>{savingDraft ? "Salvando…" : "Salvar rascunho"}</span>
-            </button>
-            {!isLastStep ? (
+            {!isEdit && (
+              <button type="button" className={styles.btnSecondary} disabled={pending || savingDraft} onClick={saveDraft} title="Salvar rascunho">
+                {savingDraft ? <LoaderCircle size={16} className={styles.spin} aria-hidden="true" /> : <Save size={16} aria-hidden="true" />}
+                <span className={styles.hideSm}>{savingDraft ? "Salvando…" : "Salvar rascunho"}</span>
+              </button>
+            )}
+            {isEdit ? (
+              <>
+                {!isLastStep && (
+                  <button type="button" onClick={validateAndNext} className={styles.btnSecondary} title="Próxima etapa">
+                    <span className={styles.hideSm}>Continuar</span>
+                    <ArrowRight size={16} aria-hidden="true" />
+                  </button>
+                )}
+                <button type="submit" name="intent" value="publish" className={styles.btnPrimary} disabled={pending}>
+                  {pending ? <LoaderCircle size={16} className={styles.spin} aria-hidden="true" /> : <Save size={16} aria-hidden="true" />}
+                  <span>{pending ? "Salvando…" : "Salvar alterações"}</span>
+                </button>
+              </>
+            ) : !isLastStep ? (
               <button type="button" onClick={validateAndNext} className={styles.btnPrimary}>
                 <span>Continuar</span>
                 <ArrowRight size={16} aria-hidden="true" />

@@ -306,8 +306,35 @@ export async function updateListingAction(
     return { error: "Não foi possível conectar ao servidor. Tente novamente." };
   }
 
+  // Fotos: só quando o formulário diz que mudaram. `photoOrder` lista a ordem final
+  // ("existing:<id>" | "new:<n>") e os arquivos novos vêm em `images`, na mesma ordem dos "new".
+  if (formData.get("photosChanged") === "true") {
+    const photos = new FormData();
+    photos.set("order", String(formData.get("photoOrder") ?? "[]"));
+    for (const image of formData.getAll("images")) {
+      if (image instanceof File && image.size > 0) photos.append("images", image);
+    }
+    try {
+      const res = await fetch(`${getApiUrl()}/listings/${id}/images`, {
+        method: "PUT",
+        headers: { Authorization: `Bearer ${token}` },
+        body: photos,
+      });
+      if (!res.ok) {
+        const data = await res.json().catch(() => null);
+        return { error: `As informações foram salvas, mas as fotos não: ${extractErrorMessage(data, "falha ao enviar as imagens")}` };
+      }
+    } catch {
+      return { error: "As informações foram salvas, mas não foi possível enviar as fotos. Tente salvar de novo." };
+    }
+  }
+
+  revalidatePath("/meus-anuncios");
   revalidatePath("/dashboard");
-  redirect("/dashboard");
+  revalidatePath(`/imovel/${id}`);
+  // Só caminhos internos (evita redirecionar para fora do site).
+  const returnTo = String(formData.get("returnTo") ?? "");
+  redirect(returnTo.startsWith("/") && !returnTo.startsWith("//") ? returnTo : "/dashboard");
 }
 
 export async function publishListingAction(
