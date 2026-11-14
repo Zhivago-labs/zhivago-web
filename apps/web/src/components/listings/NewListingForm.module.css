@@ -1655,3 +1655,83 @@
   flex-shrink: 0;
   margin-top: 2px;
 }
+
+/* Outros diferenciais: itens adicionados e sugestões */
+.tagList {
+  list-style: none;
+  margin: 0;
+  padding: 0;
+  display: flex;
+  flex-wrap: wrap;
+  gap: 8px;
+}
+
+.tag {
+  display: inline-flex;
+  align-items: center;
+  gap: 6px;
+  padding: 6px 6px 6px 12px;
+  border: 1px solid var(--brand-pink);
+  border-radius: 99px;
+  background: var(--brand-pink-light);
+  color: var(--brand-pink-text);
+  font-size: 13.5px;
+  font-weight: 600;
+  animation: pop 0.2s ease;
+}
+
+.tag button {
+  display: grid;
+  place-items: center;
+  width: 24px;
+  height: 24px;
+  border: 0;
+  border-radius: 50%;
+  background: transparent;
+  color: inherit;
+  cursor: pointer;
+}
+
+.tag button:hover {
+  background: rgba(230, 30, 77, 0.12);
+}
+
+.tag button:focus-visible,
+.suggestion:focus-visible {
+  outline: 2px solid var(--brand-pink);
+  outline-offset: 1px;
+}
+
+.suggestions {
+  display: flex;
+  flex-wrap: wrap;
+  gap: 8px;
+}
+
+.suggestion {
+  display: inline-flex;
+  align-items: center;
+  gap: 4px;
+  min-height: 34px;
+  padding: 0 12px;
+  border: 1px dashed var(--border-hover);
+  border-radius: 99px;
+  background: var(--card-bg);
+  color: var(--foreground);
+  font: inherit;
+  font-size: 13px;
+  cursor: pointer;
+  transition: border-color 0.15s ease, background 0.15s ease;
+}
+
+.suggestion:hover {
+  border-style: solid;
+  border-color: var(--brand-pink);
+  background: var(--brand-pink-light);
+}
+
+@media (prefers-reduced-motion: reduce) {
+  .tag {
+    animation: none;
+  }
+}

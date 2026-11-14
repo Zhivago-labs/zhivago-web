@@ -1,7 +1,7 @@
 "use client";
 
 import { useState } from "react";
-import { ChevronDown, ChevronUp } from "lucide-react";
+import { ChevronDown, ChevronUp, Sparkles } from "lucide-react";
 import { AmenitiesModal } from "./AmenitiesModal";
 import { AVAILABLE_AMENITIES } from "@/components/listings/AmenitiesSelector";
 import styles from "./ListingOverview.module.css";
@@ -72,6 +72,46 @@ export function ListingAmenities({ amenities }: { amenities?: string | null }) {
         </button>
       )}
       {modalOpen && <AmenitiesModal amenities={amenities} onClose={() => setModalOpen(false)} />}
+    </div>
+  );
+}
+
+/**
+ * Aba "Diferenciais": todas as comodidades marcadas (com ícone) e os "outros diferenciais" que o
+ * anunciante digitou. Só aparece o que existe de verdade no anúncio (seção 88: nada inventado).
+ */
+export function ListingDifferentials({ amenities, features }: { amenities?: string | null; features: string[] }) {
+  const selected = parseAmenities(amenities);
+  const items = AVAILABLE_AMENITIES.filter((item) => selected.includes(item.id));
+
+  return (
+    <div className={styles.differentials}>
+      {items.length > 0 && (
+        <section>
+          <h3 className={styles.sectionTitle}>Comodidades</h3>
+          <ul className={styles.amenityGrid}>
+            {items.map((item) => (
+              <li key={item.id} className={styles.amenityCard}>
+                <span className={styles.amenityCardIcon}><item.icon size={18} aria-hidden="true" /></span>
+                {item.label}
+              </li>
+            ))}
+          </ul>
+        </section>
+      )}
+      {features.length > 0 && (
+        <section>
+          <h3 className={styles.sectionTitle}>Outros diferenciais</h3>
+          <ul className={styles.featureList}>
+            {features.map((feature) => (
+              <li key={feature} className={styles.featureChip}>
+                <Sparkles size={14} aria-hidden="true" />
+                {feature}
+              </li>
+            ))}
+          </ul>
+        </section>
+      )}
     </div>
   );
 }

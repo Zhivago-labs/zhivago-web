@@ -124,6 +124,87 @@ const formatCep = (value: string) => {
 };
 const plural = (n: number, one: string, many: string) => `${n} ${n === 1 ? one : many}`;
 
+/* ───────────────────────── Outros diferenciais ───────────────────────── */
+
+const MAX_FEATURES = 15;
+const MAX_FEATURE_LENGTH = 40;
+const MAX_NEIGHBORHOOD = 1500;
+const FEATURE_SUGGESTIONS = [
+  "Vista para o mar", "Varanda gourmet", "Churrasqueira", "Armários planejados", "Área de serviço",
+  "Quintal", "Jardim", "Sacada", "Portaria 24h", "Playground", "Salão de festas", "Aquecimento solar",
+];
+
+function FeatureTags({ value, onChange }: { value: string[]; onChange: (next: string[]) => void }) {
+  const [draft, setDraft] = useState("");
+  const [hint, setHint] = useState("");
+  const has = (text: string) => value.some((item) => item.toLowerCase() === text.toLowerCase());
+  const add = (raw: string) => {
+    const text = raw.trim().replace(/\s+/g, " ");
+    if (!text) return;
+    if (text.length > MAX_FEATURE_LENGTH) { setHint(`Use até ${MAX_FEATURE_LENGTH} caracteres por diferencial.`); return; }
+    if (has(text)) { setHint(`“${text}” já está na lista.`); return; }
+    if (value.length >= MAX_FEATURES) { setHint(`Limite de ${MAX_FEATURES} diferenciais.`); return; }
+    onChange([...value, text]);
+    setDraft("");
+    setHint("");
+  };
+  const suggestions = FEATURE_SUGGESTIONS.filter((item) => !has(item));
+
+  return (
+    <div className={styles.fields}>
+      <div className={styles.field}>
+        <div className={styles.labelRow}>
+          <label className={styles.label} htmlFor="featureInput">Adicionar diferencial <span className={styles.optional}>(opcional)</span></label>
+          <span className={styles.counterText}>{value.length} de {MAX_FEATURES}</span>
+        </div>
+        <div className={styles.cepRow}>
+          <input
+            id="featureInput"
+            type="text"
+            maxLength={MAX_FEATURE_LENGTH + 10}
+            placeholder="Ex.: Vista para o mar"
+            value={draft}
+            onChange={(e) => { setDraft(e.target.value); setHint(""); }}
+            onKeyDown={(e) => { if (e.key === "Enter") { e.preventDefault(); add(draft); } }}
+            className={styles.input}
+            aria-describedby="featureInput-hint"
+          />
+          <button type="button" className={`${styles.btnSecondary} ${styles.cepButton}`} onClick={() => add(draft)} disabled={!draft.trim() || value.length >= MAX_FEATURES}>
+            <Plus size={16} aria-hidden="true" />Adicionar
+          </button>
+        </div>
+        <p id="featureInput-hint" className={hint ? styles.fieldError : styles.hint} role={hint ? "alert" : undefined}>
+          {hint ? <><CircleAlert size={14} aria-hidden="true" /><span>{hint}</span></> : "Pressione Enter para adicionar. Aparecem na aba Diferenciais do anúncio."}
+        </p>
+      </div>
+
+      {value.length > 0 && (
+        <ul className={styles.tagList} aria-label="Diferenciais adicionados">
+          {value.map((item) => (
+            <li key={item} className={styles.tag}>
+              {item}
+              <button type="button" onClick={() => onChange(value.filter((x) => x !== item))} aria-label={`Remover ${item}`}><X size={13} /></button>
+            </li>
+          ))}
+        </ul>
+      )}
+
+      {suggestions.length > 0 && value.length < MAX_FEATURES && (
+        <div>
+          <p className={styles.hint} style={{ marginBottom: 8 }}>Sugestões rápidas:</p>
+          <div className={styles.suggestions}>
+            {suggestions.map((item) => (
+              <button key={item} type="button" className={styles.suggestion} onClick={() => add(item)}>
+                <Plus size={13} aria-hidden="true" />{item}
+              </button>
+            ))}
+          </div>
+        </div>
+      )}
+    </div>
+  );
+}
+
 /* ───────────────────────── Leitura de um anúncio salvo (modo edição) ───────────────────────── */
 
 function parseJson<T>(value: string | null | undefined, fallback: T): T {
@@ -383,6 +464,8 @@ export function NewListingForm({ myOrg, buildings, userId, listing, returnTo }: 
 
   // Seção 61 da spec: nunca começar com comodidades pré-marcadas — o anunciante escolhe tudo.
   const [amenities, setAmenities] = useState<string[]>(() => parseJson<string[]>(listing?.amenities, []));
+  const [features, setFeatures] = useState<string[]>(() => parseJson<string[]>(listing?.features, []).filter((item) => typeof item === "string"));
+  const [neighborhood, setNeighborhood] = useState(listing?.neighborhood ?? "");
 
   // Estados de Regras e Segurança (só DAILY_RENT)
   const [checkInTime, setCheckInTime] = useState(listing?.checkInTime ?? "15:00");
@@ -456,7 +539,7 @@ export function NewListingForm({ myOrg, buildings, userId, listing, returnTo }: 
   const photos = photoItems.map((item) => ({ url: item.url }));
   const [previewIndex, setPreviewIndex] = useState(0);
 
-  const snapshot = () => ({ structureConfirmed, currentStep, type, modality, name, description, bedrooms, suites, bathrooms, parking, privateArea, totalArea, amenities, checkInTime, checkOutTime, customMaxGuests, minimumNights, cleaningFee, allowPetsDaily, allowSmoking, allowParties, quietHours, customNotes, externalCameras, smokeAlarm, fireExtinguisher, doorman24h, firstAidKit, cancellationPolicy, condoFee, iptuAnnual, acceptsFinancing, acceptsExchange, iptuMonthly, availableFrom, minimumLeaseMonths, guaranteeTypes, isFurnished, allowPetsMonthly, price, acceptsNegotiation, minNegotiablePrice, cep, logradouro, numero, complemento, bairro, cidade, uf, buildingId, hasSpecificAgent, assignedAgentId, assumeBuildingLeads, files: filesRef.current });
+  const snapshot = () => ({ structureConfirmed, currentStep, type, modality, name, description, bedrooms, suites, bathrooms, parking, privateArea, totalArea, amenities, features, neighborhood, checkInTime, checkOutTime, customMaxGuests, minimumNights, cleaningFee, allowPetsDaily, allowSmoking, allowParties, quietHours, customNotes, externalCameras, smokeAlarm, fireExtinguisher, doorman24h, firstAidKit, cancellationPolicy, condoFee, iptuAnnual, acceptsFinancing, acceptsExchange, iptuMonthly, availableFrom, minimumLeaseMonths, guaranteeTypes, isFurnished, allowPetsMonthly, price, acceptsNegotiation, minNegotiablePrice, cep, logradouro, numero, complemento, bairro, cidade, uf, buildingId, hasSpecificAgent, assignedAgentId, assumeBuildingLeads, files: filesRef.current });
   type DraftSnapshot = ReturnType<typeof snapshot>;
   useEffect(() => { if (isEdit) return; listingDraft<DraftSnapshot>(userId).then(d => setDraftAvailable(!!d)).catch(() => setDraftMessage("Não foi possível consultar o rascunho neste navegador.")); }, [userId, isEdit]);
   const saveDraft = async () => {
@@ -482,6 +565,8 @@ export function NewListingForm({ myOrg, buildings, userId, listing, returnTo }: 
       setPrivateArea(draft.privateArea);
       setTotalArea(draft.totalArea);
       setAmenities(draft.amenities);
+      setFeatures(draft.features ?? []);
+      setNeighborhood(draft.neighborhood ?? "");
       setCheckInTime(draft.checkInTime);
       setCheckOutTime(draft.checkOutTime);
       setCustomMaxGuests(draft.customMaxGuests);
@@ -576,6 +661,7 @@ export function NewListingForm({ myOrg, buildings, userId, listing, returnTo }: 
       ...(cep.replace(/\D/g, "").length !== 8 ? [{ field: "cep", message: "Informe um CEP com 8 dígitos." }] : []),
       ...(!cidade.trim() ? [{ field: "cidade", message: "Informe a cidade." }] : []),
       ...(!/^[A-Za-z]{2}$/.test(uf) ? [{ field: "uf", message: "Informe a UF com duas letras." }] : []),
+      ...(neighborhood.length > MAX_NEIGHBORHOOD ? [{ field: "neighborhood", message: `O texto sobre a região pode ter até ${MAX_NEIGHBORHOOD} caracteres.` }] : []),
     ];
     if (step === 4) return [
       ...(!(Number(price) > 0 && Number.isFinite(Number(price))) ? [{ field: "price", message: "Informe um preço maior que zero." }] : []),
@@ -747,6 +833,8 @@ export function NewListingForm({ myOrg, buildings, userId, listing, returnTo }: 
       <input type="hidden" name="cidade" value={cidade} />
       <input type="hidden" name="uf" value={uf} />
       <input type="hidden" name="amenities" value={JSON.stringify(amenities)} />
+      <input type="hidden" name="features" value={JSON.stringify(features)} />
+      <input type="hidden" name="neighborhood" value={neighborhood} />
       {isEdit && (
         <>
           <input type="hidden" name="id" value={listing.id} />
@@ -971,6 +1059,10 @@ export function NewListingForm({ myOrg, buildings, userId, listing, returnTo }: 
                 <AmenitiesSelector value={amenities} onChange={setAmenities} modality={modality} furnished={isFurnished} />
               </div>
             </Card>
+
+            <Card icon={Sparkles} title="Outros diferenciais" subtitle="O que torna o imóvel especial e não está na lista acima.">
+              <FeatureTags value={features} onChange={setFeatures} />
+            </Card>
           </div>
         )}
 
@@ -1040,6 +1132,28 @@ export function NewListingForm({ myOrg, buildings, userId, listing, returnTo }: 
                   </Field>
                 </div>
               </div>
+            </Card>
+
+            <Card icon={MapPin} title="Sobre a região" subtitle="Ajuda quem não conhece o bairro. Aparece na aba Localização do anúncio.">
+              <Field
+                id="neighborhood"
+                label="O que há por perto"
+                optional
+                error={errorFor("neighborhood")}
+                aside={<span className={styles.counterText}>{neighborhood.length} de {MAX_NEIGHBORHOOD}</span>}
+                hint="Comércio, mercados, transporte, escolas, parques, praia, hospitais…"
+              >
+                <textarea
+                  id="neighborhood"
+                  rows={4}
+                  placeholder="Ex.: A duas quadras da praia, com padaria e farmácia na esquina. Ponto de ônibus em frente e escolas a 5 minutos a pé."
+                  value={neighborhood}
+                  onChange={(e) => setNeighborhood(e.target.value)}
+                  onBlur={() => touch("neighborhood")}
+                  className={styles.textarea}
+                  {...describe("neighborhood", errorFor("neighborhood"), true)}
+                />
+              </Field>
             </Card>
 
             {isOrg && (
@@ -1341,9 +1455,10 @@ export function NewListingForm({ myOrg, buildings, userId, listing, returnTo }: 
                     {privateArea && Number(privateArea) > 0 && <span className={styles.chip}><Ruler size={14} aria-hidden="true" />{privateArea} m²</span>}
                     {modality === "diaria" && <span className={styles.chip}><Users size={14} aria-hidden="true" />até {plural(customMaxGuests, "hóspede", "hóspedes")}</span>}
                   </div>
-                  {visibleAmenities.length > 0 && (
+                  {(visibleAmenities.length > 0 || features.length > 0) && (
                     <div className={styles.chips}>
                       {visibleAmenities.map((id) => <span key={id} className={styles.chip}><Check size={13} aria-hidden="true" />{AMENITY_LABELS.get(id) ?? id}</span>)}
+                      {features.map((item) => <span key={`f-${item}`} className={styles.chip}><Sparkles size={13} aria-hidden="true" />{item}</span>)}
                     </div>
                   )}
                   {description.trim() && <p className={styles.previewDesc}>{description}</p>}
@@ -1392,12 +1507,12 @@ export function NewListingForm({ myOrg, buildings, userId, listing, returnTo }: 
                     <dd className={styles.summaryValue}>
                       {structureConfirmed ? `${plural(bedrooms, "quarto", "quartos")}, ${plural(suites, "suíte", "suítes")}, ${plural(bathrooms, "banheiro", "banheiros")} e ${plural(parking, "vaga", "vagas")}` : "Quantidades não confirmadas"}.
                       {" "}Área privativa: {privateArea ? `${privateArea} m²` : "não informada"}; total: {totalArea ? `${totalArea} m²` : "não informada"}. {isFurnished ? "Mobiliado." : "Sem mobília informada."}
-                      {" "}Comodidades: {visibleAmenities.map((id) => AMENITY_LABELS.get(id) ?? id).join(", ") || "nenhuma marcada"}.
+                      {" "}Comodidades: {visibleAmenities.map((id) => AMENITY_LABELS.get(id) ?? id).join(", ") || "nenhuma marcada"}. Outros diferenciais: {features.join(", ") || "nenhum"}.
                     </dd>
                   </div>
                   <div className={styles.summaryItem}>
                     <dt className={styles.summaryHead}>Localização <button type="button" className={styles.editBtn} onClick={() => goTo(3)}><Pencil size={13} aria-hidden="true" />Editar</button></dt>
-                    <dd className={styles.summaryValue}>{[[logradouro, numero].filter(Boolean).join(", "), complemento, bairro, [cidade, uf].filter(Boolean).join(" - "), cep].filter(Boolean).join(" · ") || "Não informada"}</dd>
+                    <dd className={styles.summaryValue}>{[[logradouro, numero].filter(Boolean).join(", "), complemento, bairro, [cidade, uf].filter(Boolean).join(" - "), cep].filter(Boolean).join(" · ") || "Não informada"}{neighborhood.trim() ? <><br />Sobre a região: {neighborhood.trim()}</> : null}</dd>
                   </div>
                   <div className={styles.summaryItem}>
                     <dt className={styles.summaryHead}>Valores e regras <button type="button" className={styles.editBtn} onClick={() => goTo(4)}><Pencil size={13} aria-hidden="true" />Editar</button></dt>

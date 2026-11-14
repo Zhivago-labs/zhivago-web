@@ -83,3 +83,73 @@
   color: var(--foreground);
   flex-shrink: 0;
 }
+
+/* Aba Diferenciais */
+.differentials {
+  display: grid;
+  gap: 28px;
+}
+
+.sectionTitle {
+  font-size: 17px;
+  font-weight: 700;
+  color: var(--foreground);
+  margin: 0 0 14px;
+  letter-spacing: -0.01em;
+}
+
+.amenityGrid {
+  list-style: none;
+  margin: 0;
+  padding: 0;
+  display: grid;
+  grid-template-columns: repeat(auto-fill, minmax(200px, 1fr));
+  gap: 10px;
+}
+
+.amenityCard {
+  display: flex;
+  align-items: center;
+  gap: 12px;
+  padding: 12px 14px;
+  border: 1px solid var(--border);
+  border-radius: 12px;
+  background: var(--surface-subtle);
+  font-size: 14px;
+  font-weight: 500;
+  color: var(--foreground);
+}
+
+.amenityCardIcon {
+  display: grid;
+  place-items: center;
+  width: 34px;
+  height: 34px;
+  flex-shrink: 0;
+  border-radius: 9px;
+  background: var(--card-bg);
+  border: 1px solid var(--border);
+  color: var(--foreground);
+}
+
+.featureList {
+  list-style: none;
+  margin: 0;
+  padding: 0;
+  display: flex;
+  flex-wrap: wrap;
+  gap: 8px;
+}
+
+.featureChip {
+  display: inline-flex;
+  align-items: center;
+  gap: 6px;
+  padding: 8px 14px;
+  border-radius: 99px;
+  background: var(--brand-pink-light);
+  border: 1px solid #fecdd3;
+  color: var(--brand-pink-text);
+  font-size: 14px;
+  font-weight: 600;
+}

@@ -90,6 +90,11 @@ export async function createListingAction(
     const filtered = chosen.filter(id => !['pet_friendly', 'estacionamento', 'cameras'].includes(id) && (operationType === 'DAILY_RENT' || formData.get('isFurnished') === 'true' || !['wifi', 'tv', 'cafeteira', 'maquina_lavar', 'cozinha'].includes(id)));
     payload.set('amenities', JSON.stringify(filtered));
   }
+  // "Outros diferenciais" (JSON de textos) e "Sobre a região" — o servidor normaliza os dois.
+  const features = String(formData.get("features") ?? "").trim();
+  if (features && features !== "[]") payload.set("features", features);
+  const neighborhood = String(formData.get("neighborhood") ?? "").trim();
+  if (neighborhood) payload.set("neighborhood", neighborhood);
 
   const checkInTime = String(formData.get("checkInTime") ?? "15:00");
   const checkOutTime = String(formData.get("checkOutTime") ?? "11:00");
@@ -230,6 +235,9 @@ export async function updateListingAction(
     bathrooms: Number(formData.get("bathrooms") ?? 0),
     parking: Number(formData.get("parking") ?? 0),
     amenities: String(formData.get("amenities") ?? ""),
+    // Vazio limpa o campo (o servidor converte "[]" e "" em null).
+    features: String(formData.get("features") ?? "[]"),
+    neighborhood: String(formData.get("neighborhood") ?? "").trim(),
   };
   if (category === "aluguel") body.billingCycle = String(formData.get("billingCycle") ?? "noite");
   if (operationType) body.operationType = operationType;

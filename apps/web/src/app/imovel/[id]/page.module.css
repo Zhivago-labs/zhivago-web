@@ -1,4 +1,6 @@
 .main {
+  width: 100%;
+  min-width: 0;
   max-width: 1240px;
   margin: 0 auto;
   padding: 24px 24px 120px;
@@ -699,4 +701,293 @@
 .footerActions button,
 .footerActions span {
   white-space: nowrap;
+}
+
+/* ── Abas: conteúdo de cada painel ── */
+.panel .overview {
+  padding-top: 0;
+}
+
+.tabTitle {
+  font-size: 18px;
+  font-weight: 700;
+  letter-spacing: -0.01em;
+  color: var(--foreground);
+  margin: 0 0 16px;
+}
+
+.tabNote {
+  margin-top: 18px;
+  font-size: 13px;
+  color: var(--muted);
+  line-height: 1.5;
+}
+
+/* Ficha do imóvel */
+.facts {
+  margin: 0;
+  display: grid;
+  gap: 0;
+}
+
+.fact {
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+  gap: 12px;
+  padding: 9px 0;
+  font-size: 13.5px;
+}
+
+.fact + .fact {
+  border-top: 1px solid var(--border);
+}
+
+.fact dt {
+  display: flex;
+  align-items: center;
+  gap: 8px;
+  color: var(--muted);
+  font-weight: 500;
+}
+
+.fact dd {
+  margin: 0;
+  font-weight: 600;
+  color: var(--foreground);
+  text-align: right;
+}
+
+/* Localização */
+.locationTab {
+  display: grid;
+  grid-template-columns: minmax(0, 1fr) minmax(0, 1.3fr);
+  gap: 24px;
+  align-items: start;
+}
+
+.locationInfo .address {
+  font-size: 14.5px;
+  margin-bottom: 16px;
+}
+
+.neighborhood {
+  padding: 14px 16px;
+  border-radius: var(--radius-md);
+  background: var(--surface-subtle);
+  border: 1px solid var(--border);
+  margin-bottom: 16px;
+}
+
+.neighborhood h4 {
+  font-size: 13.5px;
+  font-weight: 700;
+  margin: 0 0 6px;
+}
+
+.neighborhood p {
+  margin: 0;
+  font-size: 14px;
+  line-height: 1.65;
+  color: #475569;
+  white-space: pre-line;
+}
+
+.mapActions {
+  display: flex;
+  flex-wrap: wrap;
+  gap: 8px;
+}
+
+.mapActions .mapButton {
+  margin-top: 0;
+  flex: 1 1 160px;
+  height: 42px;
+  font-size: 13.5px;
+  font-weight: 600;
+}
+
+.mapLarge {
+  overflow: hidden;
+  display: block;
+  width: 100%;
+  height: 320px;
+  border: 1px solid var(--border);
+  border-radius: var(--radius-lg);
+  background: #e2e8f0;
+}
+
+/* Anunciante */
+.advertiserTab {
+  display: grid;
+  gap: 18px;
+  max-width: 640px;
+}
+
+.advertiserHead {
+  display: flex;
+  align-items: center;
+  gap: 16px;
+}
+
+.avatarLarge,
+.avatarLargeInitial {
+  width: 72px;
+  height: 72px;
+  border-radius: 50%;
+  flex-shrink: 0;
+}
+
+.avatarLarge {
+  object-fit: cover;
+  border: 1px solid var(--border);
+}
+
+.avatarLargeInitial {
+  display: grid;
+  place-items: center;
+  background: var(--foreground);
+  color: #ffffff;
+  font-size: 28px;
+  font-weight: 700;
+}
+
+.advertiserTitle {
+  font-size: 19px;
+  font-weight: 700;
+  color: var(--foreground);
+}
+
+.advertiserKind {
+  font-size: 13.5px;
+  color: var(--muted);
+}
+
+.advertiserFacts {
+  margin: 0;
+  display: grid;
+  grid-template-columns: repeat(auto-fit, minmax(150px, 1fr));
+  gap: 12px;
+}
+
+.advertiserFacts div {
+  padding: 12px 14px;
+  border: 1px solid var(--border);
+  border-radius: var(--radius-md);
+  background: var(--surface-subtle);
+}
+
+.advertiserFacts dt {
+  font-size: 12px;
+  color: var(--muted);
+}
+
+.advertiserFacts dd {
+  margin: 2px 0 0;
+  font-size: 15px;
+  font-weight: 700;
+  color: var(--foreground);
+}
+
+.advertiserActions {
+  display: grid;
+  grid-template-columns: repeat(auto-fit, minmax(220px, 1fr));
+  gap: 10px;
+}
+
+.secondaryButton {
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  gap: 8px;
+  height: 46px;
+  border: 1px solid var(--border-hover);
+  border-radius: var(--radius-md);
+  background: var(--card-bg);
+  color: var(--foreground);
+  font-size: 14px;
+  font-weight: 600;
+  transition: border-color 0.15s ease, background 0.15s ease;
+}
+
+.secondaryButton:hover {
+  border-color: var(--foreground);
+  background: var(--hover-bg);
+}
+
+.advertiserTab .phoneList {
+  margin-top: 0;
+}
+
+.advertiserTab .terms {
+  margin: 0;
+}
+
+/* Card de preço: atalho para a aba Anunciante */
+.advertiserMini {
+  display: flex;
+  align-items: center;
+  gap: 12px;
+  margin-top: 16px;
+  padding: 12px;
+  border: 1px solid var(--border);
+  border-radius: var(--radius-md);
+  color: var(--foreground);
+  transition: border-color 0.15s ease, background 0.15s ease;
+}
+
+.advertiserMini:hover {
+  border-color: var(--border-hover);
+  background: var(--surface-subtle);
+}
+
+.advertiserMini:focus-visible,
+.secondaryButton:focus-visible {
+  outline: 2px solid var(--brand-pink);
+  outline-offset: 2px;
+}
+
+.advertiserMini .avatar,
+.advertiserMini .avatarInitial {
+  width: 38px;
+  height: 38px;
+  font-size: 15px;
+}
+
+.advertiserMiniText {
+  display: grid;
+  flex: 1;
+  min-width: 0;
+}
+
+.advertiserMiniLabel {
+  font-size: 11.5px;
+  color: var(--muted);
+}
+
+.advertiserMiniText .advertiserName {
+  font-weight: 600;
+  overflow: hidden;
+  text-overflow: ellipsis;
+  white-space: nowrap;
+}
+
+.advertiserMiniCheck {
+  color: #15803d;
+  flex-shrink: 0;
+}
+
+@media (max-width: 900px) {
+  .locationTab {
+    grid-template-columns: minmax(0, 1fr);
+  }
+  .mapLarge {
+    height: 260px;
+  }
+}
+
+@media (max-width: 520px) {
+  .conditionGrid {
+    grid-template-columns: minmax(0, 1fr);
+  }
 }
