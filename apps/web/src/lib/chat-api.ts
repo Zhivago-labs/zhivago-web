@@ -54,6 +54,14 @@ export interface ConversationDetail {
   // de `property.ownerId`: imóvel de organização nunca tem `ownerId` preenchido, e quem responde
   // muda conforme o Lead é (re)atribuído no CRM.
   canManage: boolean;
+  // Encerramento: "ADMIN" (moderação, só a administração reabre) ou "LISTING" (a imobiliária
+  // encerrou; o cliente pode reabrir pelo modal do chat). Permissões calculadas no backend.
+  closedBy?: "ADMIN" | "LISTING" | null;
+  canClose?: boolean;
+  canReopen?: boolean;
+  // Bloqueio (vale nos dois sentidos): se há algum ativo e qual deles o viewer pode desfazer.
+  canBlock?: boolean;
+  block?: { active: boolean; removableId: string | null };
   // Comandos de "/" que fazem sentido agora nesta conversa (ver computeAvailableCommands em
   // chat.controller.ts) — alimenta o menu de autocomplete ao digitar "/" no chat.
   availableCommands: ChatCommand[];
@@ -96,5 +104,24 @@ export async function getMessages(token: string, id: string): Promise<ChatMessag
     cache: "no-store",
   });
   if (!res.ok) throw new Error(`Falha ao buscar mensagens (${res.status})`);
+  return res.json();
+}
+
+export interface ChatBlockItem {
+  id: string;
+  createdAt: string;
+  // PERSONAL = feito por mim; ORGANIZATION = feito em nome da imobiliária (vale pra equipe toda).
+  scope: "PERSONAL" | "ORGANIZATION";
+  blockedBy: { id: string; name: string };
+  target: { kind: "USER" | "ORGANIZATION"; id: string; name: string; image: string | null };
+  canRemove: boolean;
+}
+
+export async function getChatBlocks(token: string): Promise<ChatBlockItem[]> {
+  const res = await fetch(`${getApiUrl()}/blocks`, {
+    headers: { Authorization: `Bearer ${token}` },
+    cache: "no-store",
+  });
+  if (!res.ok) return [];
   return res.json();
 }

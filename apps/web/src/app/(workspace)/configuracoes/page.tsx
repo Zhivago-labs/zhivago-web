@@ -8,7 +8,10 @@ import { AgencyBadge } from "@/components/AgencyBadge";
 import { getAgencyProfile } from "@/lib/api";
 import { canEditShowcase } from "@/lib/showcase";
 import { getMyOrganization } from "@/lib/organizations-api";
+import { getChatBlocks } from "@/lib/chat-api";
+import { BlockedList } from "@/components/settings/BlockedList";
 import {
+  Ban,
   Settings,
   ArrowLeft,
   User,
@@ -36,6 +39,7 @@ export default async function SettingsPage() {
     user.role !== "ADMIN" && canEditShowcase(await getAgencyProfile(user.id), user);
   // Conta pessoal pode entrar como corretor numa imobiliária usando o código de convite.
   const canJoinAgency = user.role !== "ADMIN" && user.accountType !== "AGENCY" && !(await getMyOrganization(token));
+  const blockedItems = user.role !== "ADMIN" ? await getChatBlocks(token) : [];
 
   return (
     <main className={styles.main}>
@@ -140,6 +144,23 @@ export default async function SettingsPage() {
               <PushNotificationOptIn token={token} variant="menuItem" />
             </div>
           </section>
+
+          {/* Bloqueios de chat */}
+          {user.role !== "ADMIN" && (
+            <section className={styles.card}>
+              <div className={styles.cardHeader}>
+                <Ban size={20} className={styles.cardIcon} />
+                <div>
+                  <h2 className={styles.cardTitle}>Bloqueios</h2>
+                  <p className={styles.cardSubtitle}>
+                    Pessoas e imobiliárias que não podem trocar mensagens com você
+                    {blockedItems.some((b) => b.scope === "ORGANIZATION") ? " nem com sua imobiliária" : ""}.
+                  </p>
+                </div>
+              </div>
+              <BlockedList token={token} initialItems={blockedItems} />
+            </section>
+          )}
 
           {/* Seção 4: Detalhes da Conta */}
           <section className={styles.card}>

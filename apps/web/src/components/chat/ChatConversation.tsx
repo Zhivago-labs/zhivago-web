@@ -2,7 +2,7 @@
 
 import { Fragment, useCallback, useEffect, useLayoutEffect, useRef, useState } from "react";
 import Link from "next/link";
-import { Flag, Lock, Unlock, Send, Handshake, CalendarRange, WifiOff, RotateCcw, ArrowDown } from "lucide-react";
+import { Ban, Flag, Lock, Unlock, Send, Handshake, CalendarRange, WifiOff, RotateCcw, ArrowDown } from "lucide-react";
 import type { Negotiation, NegotiationRound } from "@zhivago/shared";
 import { useChatSocket } from "./ChatSocketProvider";
 import {
@@ -82,6 +82,29 @@ async function patchConversation(token: string, id: string, path: string): Promi
   return res.ok;
 }
 
+/** Encerrar/reabrir/bloquear/desbloquear — devolve a mensagem de erro, ou null se deu certo. */
+async function conversationAction(
+  token: string,
+  method: "PATCH" | "POST" | "DELETE",
+  path: string
+): Promise<string | null> {
+  try {
+    const res = await fetch(`${getPublicApiUrl()}${path}`, {
+      method,
+      headers: { Authorization: `Bearer ${token}`, ...(method === "DELETE" ? {} : { "Content-Type": "application/json" }) },
+      body: method === "DELETE" ? undefined : "{}",
+    });
+    if (res.ok) return null;
+    const data = await res.json().catch(() => null);
+    return data?.message ?? data?.error ?? "Não foi possível concluir a ação. Tente novamente.";
+  } catch {
+    return "Não foi possível conectar ao servidor.";
+  }
+}
+
+// Mensagens automáticas de encerramento/reabertura: aparecem centralizadas, como aviso do sistema.
+const SYSTEM_TYPES = new Set(["CONVERSATION_CLOSED", "CONVERSATION_REOPENED"]);
+
 async function patchRequest(
   token: string,
   kind: "bookings" | "offers",
@@ -113,6 +136,10 @@ export function ChatConversation({ conversation: initialConversation, initialMes
   const [actionError, setActionError] = useState<string | null>(null);
   const [isClosed, setIsClosed] = useState(initialConversation.isClosed);
   const [isReported, setIsReported] = useState(initialConversation.isReported);
+  // Modal "reabrir conversa?" do cliente — abre sozinho quando a imobiliária encerra; "Agora não"
+  // fecha e deixa o botão de reabrir na faixa de baixo.
+  const [reopenPromptDismissed, setReopenPromptDismissed] = useState(false);
+  const [busyAction, setBusyAction] = useState(false);
   const [negotiations, setNegotiations] = useState<Negotiation[]>([]);
   const [busyRequestId, setBusyRequestId] = useState<string | null>(null);
   // null = fechado; { counterTo: null } = proposta nova; com counterTo = contraproposta. `mode`
@@ -142,7 +169,11 @@ export function ChatConversation({ conversation: initialConversation, initialMes
   // Negociação de valor (lib/negotiations.ts no backend): o lado do viewer é o do anúncio quando
   // ele pode gerenciar a conversa; senão é o cliente.
   const viewerSide = conversation.canManage ? "LISTING" : "CUSTOMER";
-  const canActOnNegotiation = isParticipant && !isAuditor && !isClosed;
+  const isBlocked = !!conversation.block?.active;
+  const canActOnNegotiation = isParticipant && !isAuditor && !isClosed && !isBlocked;
+  // Cliente (lado que não gerencia o anúncio) com conversa encerrada pela imobiliária.
+  const showReopenPrompt =
+    isClosed && !!conversation.canReopen && isParticipant && !conversation.canManage && !reopenPromptDismissed;
   const canNegotiate =
     canActOnNegotiation && conversation.property.acceptsNegotiation && conversation.property.status === "APPROVED";
   const isSale = conversation.property.operationType === "SALE";
@@ -318,6 +349,14 @@ export function ChatConversation({ conversation: initialConversation, initialMes
       if (message.senderId !== currentUser.id) markAsRead();
       // Card de reserva/proposta novo muda o que o viewer pode fazer (comandos de "/").
       if (CARD_TYPES.has(message.type)) loadDetail().catch(() => {});
+      // Encerrada agora: o modal de reabrir volta a aparecer pro cliente.
+      if (message.type === "CONVERSATION_CLOSED") setReopenPromptDismissed(false);
+    };
+
+    // Encerrada/reaberta/bloqueada (backend emite junto da mensagem automática, ou sozinho no bloqueio).
+    const handleConversationUpdated = (update: { conversationId: string }) => {
+      if (update.conversationId !== conversationId) return;
+      loadDetail().catch(() => {});
     };
 
     // Estado de uma negociação mudou (nova rodada, aceite, recusa, expiração) — atualiza os cards
@@ -344,8 +383,10 @@ export function ChatConversation({ conversation: initialConversation, initialMes
     socket.on("receiveMessage", handleReceive);
     socket.on("negotiationUpdated", handleNegotiation);
     socket.on("messageUpdated", handleMessageUpdated);
+    socket.on("conversationUpdated", handleConversationUpdated);
     socket.on("connect", resync);
     return () => {
+      socket.off("conversationUpdated", handleConversationUpdated);
       socket.off("receiveMessage", handleReceive);
       socket.off("messagesRead", handleRead);
       socket.off("negotiationUpdated", handleNegotiation);
@@ -392,7 +433,7 @@ export function ChatConversation({ conversation: initialConversation, initialMes
   }, [input]);
 
   const sendContent = (content: string) => {
-    if (!content || !socket || isClosed || !isParticipant) return;
+    if (!content || !socket || isClosed || isBlocked || !isParticipant) return;
     setSendError(null);
     setInput("");
     setCommandMenuDismissed(false);
@@ -543,9 +584,45 @@ export function ChatConversation({ conversation: initialConversation, initialMes
     if (await patchConversation(token, conversationId, "report")) setIsReported(true);
   };
 
-  const handleToggleClose = async () => {
-    const path = isClosed ? "reopen" : "close";
-    if (await patchConversation(token, conversationId, path)) setIsClosed(!isClosed);
+  /** Roda uma ação de conversa e recarrega o estado (permissões, bloqueio) a partir do servidor. */
+  const runConversationAction = async (method: "PATCH" | "POST" | "DELETE", path: string) => {
+    setBusyAction(true);
+    setActionError(null);
+    const error = await conversationAction(token, method, path);
+    if (error) setActionError(error);
+    await loadDetail().catch(() => {});
+    setBusyAction(false);
+    return !error;
+  };
+
+  const handleClose = async () => {
+    const message = isAdmin && !conversation.canManage
+      ? "Encerrar esta conversa? Só a administração poderá reabri-la."
+      : "Encerrar esta conversa? O cliente recebe um aviso automático e não poderá mais enviar mensagens, mas pode pedir para reabrir.";
+    if (!confirm(message)) return;
+    await runConversationAction("PATCH", `/conversations/${conversationId}/close`);
+  };
+
+  const handleReopen = async () => {
+    if (await runConversationAction("PATCH", `/conversations/${conversationId}/reopen`)) {
+      setReopenPromptDismissed(false);
+    }
+  };
+
+  const handleBlock = async () => {
+    const message = conversation.canManage
+      ? "Bloquear este cliente? Ele não poderá mais enviar mensagens, iniciar conversas ou fazer reservas com você" +
+        (conversation.property.ownerId ? "." : " nem com ninguém da sua imobiliária.") +
+        " Você pode desbloquear depois em Configurações."
+      : "Bloquear este anunciante? Nenhum dos dois poderá mais enviar mensagens nesta ou em novas conversas. Você pode desbloquear depois em Configurações.";
+    if (!confirm(message)) return;
+    await runConversationAction("POST", `/conversations/${conversationId}/block`);
+  };
+
+  const handleUnblock = async () => {
+    const id = conversation.block?.removableId;
+    if (!id || !confirm("Desbloquear? Vocês voltam a poder trocar mensagens.")) return;
+    await runConversationAction("DELETE", `/blocks/${id}`);
   };
 
   /** Envia proposta ou contraproposta; devolve a mensagem de erro, ou null se deu certo. */
@@ -809,14 +886,24 @@ export function ChatConversation({ conversation: initialConversation, initialMes
               <Flag size={16} />
             </button>
           )}
-          {isAdmin && (
-            <button
-              type="button"
-              onClick={handleToggleClose}
-              className={styles.iconButton}
-              title={isClosed ? "Reabrir conversa" : "Encerrar conversa"}
-            >
-              {isClosed ? <Unlock size={16} /> : <Lock size={16} />}
+          {conversation.canBlock && (
+            <button type="button" onClick={handleBlock} disabled={busyAction} className={styles.iconButton} title="Bloquear">
+              <Ban size={16} />
+            </button>
+          )}
+          {conversation.block?.removableId && (
+            <button type="button" onClick={handleUnblock} disabled={busyAction} className={`${styles.iconButton} ${styles.iconButtonActive}`} title="Desbloquear">
+              <Ban size={16} />
+            </button>
+          )}
+          {conversation.canClose && (
+            <button type="button" onClick={handleClose} disabled={busyAction} className={styles.iconButton} title="Encerrar conversa">
+              <Lock size={16} />
+            </button>
+          )}
+          {isClosed && conversation.canReopen && (isAdmin || conversation.canManage) && (
+            <button type="button" onClick={handleReopen} disabled={busyAction} className={styles.iconButton} title="Reabrir conversa">
+              <Unlock size={16} />
             </button>
           )}
         </div>
@@ -932,6 +1019,16 @@ export function ChatConversation({ conversation: initialConversation, initialMes
                     <span>{formatDayLabel(message.createdAt)}</span>
                   </div>
                 )}
+                {SYSTEM_TYPES.has(message.type) ? (
+                  <div
+                    className={styles.systemNotice}
+                    data-unread-message-id={message.senderId !== currentUser.id && !message.isRead ? message.id : undefined}
+                  >
+                    {message.type === "CONVERSATION_CLOSED" ? <Lock size={13} /> : <Unlock size={13} />}
+                    <span>{message.content}</span>
+                    <time>{formatTime(message.createdAt)}</time>
+                  </div>
+                ) : (
                 <div
                   data-unread-message-id={message.senderId !== currentUser.id && !message.isRead ? message.id : undefined}
                   className={[
@@ -967,6 +1064,7 @@ export function ChatConversation({ conversation: initialConversation, initialMes
                     </div>
                   )}
                 </div>
+                )}
                 {message.localStatus === "failed" && (
                   <div className={styles.failedRow}>
                     <span>Não enviada.</span>
@@ -991,8 +1089,30 @@ export function ChatConversation({ conversation: initialConversation, initialMes
 
       {actionError && <p className={styles.sendError}>{actionError}</p>}
 
-      {isClosed ? (
-        <p className={styles.closedNotice}>Esta conversa foi encerrada pela administração.</p>
+      {isBlocked && !isAuditor ? (
+        <div className={styles.closedNotice}>
+          <p>Não é possível enviar mensagens nesta conversa.</p>
+          {conversation.block?.removableId && (
+            <button type="button" onClick={handleUnblock} disabled={busyAction} className={styles.closedNoticeAction}>
+              Desbloquear
+            </button>
+          )}
+        </div>
+      ) : isClosed ? (
+        <div className={styles.closedNotice}>
+          <p>
+            {conversation.closedBy === "LISTING"
+              ? conversation.canManage
+                ? "Você encerrou esta conversa. O cliente não pode enviar mensagens até ela ser reaberta."
+                : "Esta conversa foi encerrada pela imobiliária."
+              : "Esta conversa foi encerrada pela administração."}
+          </p>
+          {conversation.canReopen && isParticipant && !conversation.canManage && (
+            <button type="button" onClick={handleReopen} disabled={busyAction} className={styles.closedNoticeAction}>
+              Reabrir conversa
+            </button>
+          )}
+        </div>
       ) : isAuditor ? (
         <p className={styles.closedNotice}>Você está visualizando no modo auditoria (apenas leitura).</p>
       ) : isParticipant ? (
@@ -1129,6 +1249,26 @@ export function ChatConversation({ conversation: initialConversation, initialMes
           onClose={() => setNegotiationModal(null)}
           onSubmit={handleSubmitRound}
         />
+      )}
+
+      {showReopenPrompt && !isBlocked && (
+        <div className={styles.modalOverlay} role="dialog" aria-modal="true" aria-labelledby="reopen-title">
+          <div className={styles.modalContent}>
+            <h2 id="reopen-title" className={styles.modalTitle}>Conversa encerrada</h2>
+            <p className={styles.modalHint}>
+              A imobiliária encerrou este atendimento e não é possível enviar novas mensagens. Quer reabrir a
+              conversa com a imobiliária? Ela será avisada.
+            </p>
+            <div className={styles.modalActions}>
+              <button type="button" className={styles.modalCancelButton} onClick={() => setReopenPromptDismissed(true)} disabled={busyAction}>
+                Agora não
+              </button>
+              <button type="button" className={styles.modalSubmitButton} onClick={handleReopen} disabled={busyAction}>
+                {busyAction ? "Reabrindo…" : "Reabrir conversa"}
+              </button>
+            </div>
+          </div>
+        </div>
       )}
     </div>
   );
