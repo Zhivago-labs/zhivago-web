@@ -40,10 +40,13 @@ export function ListYourPropertySection() {
             </Link>
           </div>
 
+          {/* Ilustração: casa contemporânea nas colinas de Minas (versões geradas a partir do PNG original). */}
           <picture className={styles.art}>
-            <source type="image/avif" sizes="(max-width: 860px) 100vw, 560px" srcSet="/images/system/auth-bg-1024.avif 1024w, /images/system/auth-bg-1920.avif 1920w" />
-            <source type="image/webp" sizes="(max-width: 860px) 100vw, 560px" srcSet="/images/system/auth-bg-1024.webp 1024w, /images/system/auth-bg-1920.webp 1920w" />
-            <img src="/images/system/auth-bg-1024.jpg" alt="" loading="lazy" decoding="async" />
+            <source type="image/avif" sizes="(max-width: 860px) 100vw, 560px" srcSet="/images/system/owners-house-800.avif 800w, /images/system/owners-house-1210.avif 1210w" />
+            <source type="image/webp" sizes="(max-width: 860px) 100vw, 560px" srcSet="/images/system/owners-house-800.webp 800w, /images/system/owners-house-1210.webp 1210w" />
+            <img src="/images/system/owners-house-800.jpg" sizes="(max-width: 860px) 100vw, 560px"
+              srcSet="/images/system/owners-house-800.jpg 800w, /images/system/owners-house-1210.jpg 1210w"
+              alt="" loading="lazy" decoding="async" />
           </picture>
         </div>
       </div>

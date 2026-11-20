@@ -31,10 +31,12 @@
 .cta { align-self: flex-start; padding: 13px 24px; border-radius: 999px; font-size: 15px; }
 
 .art { position: relative; min-height: 420px; }
-.art img { position: absolute; inset: 0; width: 100%; height: 100%; object-fit: cover; object-position: 70% 60%; }
+/* A casa fica no centro-baixo da ilustração: o enquadramento prioriza a fachada. */
+.art img { position: absolute; inset: 0; width: 100%; height: 100%; object-fit: cover; object-position: 55% 55%; }
 
 @media (max-width: 860px) {
   .panel { grid-template-columns: minmax(0, 1fr); border-radius: 24px; }
-  .art { order: -1; min-height: 220px; }
+  .art { order: -1; min-height: 280px; }
+  .art img { object-position: 50% 52%; }
   .copy { padding: 32px 24px 36px; }
 }

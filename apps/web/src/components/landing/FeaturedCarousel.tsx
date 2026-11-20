@@ -72,7 +72,9 @@ export function FeaturedCarousel({
     [reducedMotion, step]
   );
 
-  const autoplay = !userPaused && !hovering && !focused && !reducedMotion && !pageHidden && listings.length > 1;
+  // Com "menos movimento" no sistema (ex.: efeitos de animação desligados no Windows) o carrossel
+  // continua avançando, só que sem o deslize animado — e o botão de pausa fica sempre à mão.
+  const autoplay = !userPaused && !hovering && !focused && !pageHidden && listings.length > 1;
   useEffect(() => {
     if (!autoplay) return;
     const timer = window.setInterval(() => move(1, true), AUTOPLAY_MS);
@@ -85,14 +87,17 @@ export function FeaturedCarousel({
     setEdges({ start: track.scrollLeft <= 8, end: track.scrollLeft + track.clientWidth >= track.scrollWidth - 8 });
   };
 
-  const canAutoplay = !reducedMotion && listings.length > 1;
+  const canAutoplay = listings.length > 1;
 
   return (
     <div
       className={styles.carousel}
-      onMouseEnter={() => setHovering(true)}
-      onMouseLeave={() => setHovering(false)}
-      onFocus={() => setFocused(true)}
+      // Só mouse de verdade pausa: no celular um toque dispararia "entrou" sem nunca "sair".
+      onPointerEnter={(event) => { if (event.pointerType === "mouse") setHovering(true); }}
+      onPointerLeave={(event) => { if (event.pointerType === "mouse") setHovering(false); }}
+      // Pausa só enquanto alguém navega pelo teclado aqui dentro — um clique numa seta deixa o
+      // foco no botão, e antes isso travava a passagem automática até clicar fora.
+      onFocus={(event) => { if (event.target.matches(":focus-visible")) setFocused(true); }}
       onBlur={(event) => { if (!event.currentTarget.contains(event.relatedTarget)) setFocused(false); }}
     >
       <div className={styles.head}>
