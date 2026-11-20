@@ -66,6 +66,17 @@ html,
 body {
   max-width: 100vw;
   overflow-x: hidden;
+  /* `clip` corta o vazamento lateral sem transformar o body em área de rolagem própria — com
+     `hidden` nada conseguia ficar preso ao rolar (cabeçalho do site e barra de busca sticky).
+     Navegadores sem suporte ficam com o `hidden` acima. */
+  overflow-x: clip;
+}
+
+/* O SiteHeader é sticky, mas vem dentro deste wrapper da mesma altura — e um sticky só gruda
+   dentro do próprio contêiner. `contents` tira o wrapper do layout; a regra da área da
+   imobiliária que o esconde (display: none, mais específica) continua valendo. */
+[data-public-header] {
+  display: contents;
 }
 
 body {

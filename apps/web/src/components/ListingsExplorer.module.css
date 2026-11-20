@@ -718,14 +718,12 @@
   .showcaseExplorer .filterGroup { flex-wrap:nowrap; }
 }
 
-/* Public exploration layout, using the existing palette exclusively. */
+/* ─── COMUM (vitrine da imobiliária e exploração) ─────────────────────────── */
 .searchControls { display: flex; flex-direction: column; gap: 16px; }
-.publicExplorer { gap: 24px; min-width: 0; }
-.publicExplorer .searchRow { max-width: 760px; }
-.publicExplorer .searchBox { min-height: 52px; }
-.publicExplorer .searchInput { font-size: 16px; }
-.publicExplorer .chip, .publicExplorer .advancedToggleBtn { min-height: 44px; font-size: 14px; }
-.publicExplorer .filtersBar { gap: 12px; }
+.searchPrimary { display: flex; align-items: center; gap: 24px; }
+.searchPrimary .searchRow { flex: 1; }
+.searchPrimary > .filterGroup { flex-shrink: 0; }
+@media (max-width: 1023px) { .searchControls .searchPrimary { flex-direction: column; align-items: stretch; gap: 16px; } }
 .quickSelect { display: inline-flex; align-items: center; gap: 8px; min-height: 44px; padding: 0 12px; border: 1px solid var(--border); border-radius: var(--radius-sm); background: var(--card-bg); font-size: 14px; font-weight: 600; }
 .quickSelect select { border: 0; background: var(--card-bg); color: var(--foreground); font: inherit; min-height: 42px; }
 .activeFilters { display: flex; flex-wrap: wrap; gap: 8px; }
@@ -738,25 +736,9 @@
 .modalCloseBtn, .numBtn, .amenityBtn, .clearQueryBtn, .suggestionRemove { min-width: 44px; min-height: 44px; }
 .suggestionItem { min-height: 44px; }
 .modalApplyBtn:disabled { cursor: not-allowed; opacity: 0.9; }
-.publicExplorer .sortSelect { min-height: 44px; font-size: 14px; }
-.publicExplorer .resultsHeader { scroll-margin-top: 100px; }
-.publicExplorer .grid { grid-template-columns: repeat(4, minmax(0, 1fr)); }
-.publicExplorer :focus-visible { outline: 2px solid var(--brand-pink); outline-offset: 3px; }
+.mobileFiltersBtn { display: none; }
 @media (prefers-reduced-motion: reduce) { .chip:active, .advancedToggleBtn:active, .numBtn:active, .amenityBtn:active { transform: none; } }
-.publicExplorer .recentSection { padding-top: 24px; border-top: 1px solid var(--border); }
-@media (max-width: 1199px) { .publicExplorer .grid { grid-template-columns: repeat(3, minmax(0, 1fr)); } }
-@media (max-width: 1023px) { .publicExplorer .grid { grid-template-columns: repeat(2, minmax(0, 1fr)); gap: 20px; } }
 @media (max-width: 767px) {
-  .publicExplorer .grid { grid-template-columns: minmax(0, 1fr); }
-  .publicExplorer .searchRow { max-width: none; }
-  .publicExplorer .filtersBar { gap: 8px; }
-  .publicExplorer .filtersBar > .filterGroup:first-child { width: 100%; display: grid; grid-template-columns: repeat(4, minmax(0, 1fr)); }
-  .publicExplorer .filterGroup:first-child .chip { justify-content: center; padding: 8px 4px; font-size: 13px; }
-  .publicExplorer .filterSeparator { display: none; }
-  .publicExplorer .resultsHeader { align-items: flex-start; }
-  .publicExplorer .sortLabelText { display: none; }
-  .publicExplorer .sortSelect { max-width: 160px; }
-  .publicExplorer .resultsCount { font-size: 13px; padding-top: 12px; }
   .modalOverlay { padding: 0; }
   .modalPanel { max-width: none; height: 100dvh; max-height: 100dvh; border-radius: 0; }
   .modalFooter { padding-bottom: max(16px, env(safe-area-inset-bottom)); }
@@ -764,23 +746,166 @@
   .modalClearBtn { max-width: 45%; text-align: left; min-height: 44px; }
 }
 
-.searchPrimary { display: flex; align-items: center; gap: 24px; }
-.searchPrimary .searchRow { flex: 1; }
-.searchPrimary > .filterGroup { flex-shrink: 0; }
-.publicExplorer .filtersBar { padding-bottom: 20px; border-bottom: 1px solid var(--border); }
-@media (min-width: 1200px) { .publicExplorer .searchRow { max-width: none; } }
-@media (max-width: 1023px) { .searchPrimary { flex-direction: column; align-items: stretch; gap: 16px; } }
-@media (max-width: 767px) {
-  .searchPrimary > .filterGroup { display: grid; grid-template-columns: repeat(4, minmax(0, 1fr)); gap: 4px; }
-  .searchPrimary > .filterGroup .chip { padding: 8px 4px; justify-content: center; font-size: 13px; }
-  .publicExplorer .filtersBar > .filterGroup:first-child { width: auto; display: flex; }
-  .publicExplorer .clearBtn { margin-left: 0; }
-  .publicExplorer .resultsHeader { gap: 8px; }
+/* ─── EXPLORAÇÃO PÚBLICA (/imoveis) ────────────────────────────────────────
+   Barra de busca presa ao cabeçalho do site, filtros em pílulas e um título que descreve a
+   busca. Paleta e tokens do próprio site; o preto do texto marca o que está selecionado. */
+.publicExplorer { gap: 20px; min-width: 0; }
+
+.toolbar {
+  position: sticky;
+  top: var(--site-header-height, 59px);
+  z-index: 50;
+  margin: 0 -32px;
+  padding: 14px 32px 12px;
+  display: flex;
+  flex-direction: column;
+  gap: 12px;
+  background: color-mix(in srgb, var(--background) 90%, transparent);
+  backdrop-filter: saturate(1.4) blur(12px);
+  -webkit-backdrop-filter: saturate(1.4) blur(12px);
+  border-bottom: 1px solid var(--border);
 }
 
+.toolbar .searchPrimary { gap: 12px; }
+.toolbar .searchRow { max-width: none; flex: 1; min-width: 0; }
+.toolbar .searchBox {
+  min-height: 48px;
+  padding: 0 8px 0 18px;
+  border: 1px solid var(--border);
+  border-radius: var(--radius-full);
+  background: var(--card-bg);
+  box-shadow: 0 1px 2px rgba(15, 23, 42, 0.04), 0 6px 16px -8px rgba(15, 23, 42, 0.14);
+}
+.toolbar .searchBox:focus-within { border-color: var(--foreground); box-shadow: 0 0 0 3px rgba(15, 23, 42, 0.08); }
+.toolbar .searchInput { font-size: 15px; }
+/* O destaque de foco é o da pílula inteira (focus-within acima), não um contorno dentro dela. */
+.publicExplorer .toolbar .searchInput:focus-visible { outline: none; }
+.toolbar .suggestionsPanel { border-radius: 16px; top: calc(100% + 8px); }
+
+.modeTabs {
+  display: inline-flex;
+  flex-shrink: 0;
+  gap: 2px;
+  padding: 4px;
+  border: 1px solid var(--border);
+  border-radius: var(--radius-full);
+  background: var(--card-bg);
+}
+.modeTab {
+  min-height: 38px;
+  padding: 0 16px;
+  border: 0;
+  border-radius: var(--radius-full);
+  background: transparent;
+  color: var(--muted);
+  font: inherit;
+  font-size: 14px;
+  font-weight: 600;
+  white-space: nowrap;
+  cursor: pointer;
+  transition: background 0.15s ease, color 0.15s ease;
+}
+.modeTab:hover { color: var(--foreground); background: var(--surface-subtle); }
+.modeTabActive, .modeTabActive:hover { background: var(--foreground); color: #ffffff; }
+
+.toolbar .filtersBar {
+  display: flex;
+  align-items: center;
+  flex-wrap: nowrap;
+  gap: 8px;
+  overflow-x: auto;
+  scrollbar-width: none;
+  padding: 2px;
+  margin: -2px;
+}
+.toolbar .filtersBar::-webkit-scrollbar { display: none; }
+.toolbar .filterGroup { gap: 8px; }
+.toolbar .chip,
+.toolbar .advancedToggleBtn,
+.toolbar .quickSelect {
+  flex-shrink: 0;
+  min-height: 38px;
+  padding: 0 14px;
+  border: 1px solid var(--border);
+  border-radius: var(--radius-full);
+  background: var(--card-bg);
+  font-size: 13.5px;
+  font-weight: 600;
+  white-space: nowrap;
+}
+.toolbar .chip:hover,
+.toolbar .advancedToggleBtn:hover,
+.toolbar .quickSelect:hover { border-color: var(--foreground); background: var(--card-bg); }
+.toolbar .chipActive,
+.toolbar .chipActive:hover { background: var(--foreground); border-color: var(--foreground); color: #ffffff; }
+.toolbar .advancedToggleActive { border-color: var(--foreground); color: var(--foreground); }
+.toolbar .activeBadge { background: var(--foreground); }
+.toolbar .quickSelect select { min-height: 36px; background: transparent; cursor: pointer; }
+.toolbar .clearBtn { flex-shrink: 0; margin-left: auto; white-space: nowrap; }
+
+.publicExplorer .activeFilters { gap: 6px; }
+.publicExplorer .activeFilters button { min-height: 34px; padding: 0 12px; background: var(--surface-subtle); font-weight: 500; }
+.publicExplorer .activeFilters button:hover { border-color: var(--foreground); }
+
+.publicExplorer .resultsHeader { align-items: flex-end; gap: 16px; padding-top: 8px; scroll-margin-top: 190px; }
+.resultsHeading { display: flex; flex-direction: column; gap: 4px; min-width: 0; }
+.resultsTitle { margin: 0; font-size: 26px; font-weight: 750; line-height: 1.2; letter-spacing: -0.025em; color: var(--foreground); overflow-wrap: anywhere; }
+.publicExplorer .resultsCount { margin: 0; min-height: 21px; font-size: 14px; font-weight: 500; color: var(--muted); }
+.publicExplorer .sortLabel { flex-shrink: 0; }
+.publicExplorer .sortLabelText { font-size: 13.5px; }
+.publicExplorer .sortSelect {
+  min-height: 40px;
+  padding: 0 36px 0 14px;
+  border-radius: var(--radius-full);
+  font-size: 13.5px;
+  appearance: none;
+  -webkit-appearance: none;
+  background: var(--card-bg) url("data:image/svg+xml,%3Csvg xmlns='http://www.w3.org/2000/svg' width='16' height='16' viewBox='0 0 24 24' fill='none' stroke='%2364748b' stroke-width='2' stroke-linecap='round' stroke-linejoin='round'%3E%3Cpath d='m6 9 6 6 6-6'/%3E%3C/svg%3E") no-repeat right 12px center;
+}
+.publicExplorer .sortSelect:hover { border-color: var(--foreground); }
+
+.publicExplorer .grid { grid-template-columns: repeat(4, minmax(0, 1fr)); column-gap: 24px; row-gap: 40px; }
+.publicExplorer :focus-visible { outline: 2px solid var(--brand-pink); outline-offset: 3px; }
+.publicExplorer .recentSection { padding-top: 28px; border-top: 1px solid var(--border); }
+
+@media (max-width: 1279px) { .publicExplorer .grid { grid-template-columns: repeat(3, minmax(0, 1fr)); } }
+@media (max-width: 1023px) {
+  .publicExplorer .grid { grid-template-columns: repeat(2, minmax(0, 1fr)); column-gap: 20px; }
+}
 @media (max-width: 767px) {
-  .publicExplorer { gap: 20px; }
-  .publicExplorer .filtersBar > .filterGroup:first-child, .publicExplorer .quickPrice, .publicExplorer .quickSelect { display: none; }
-  .publicExplorer .filtersBar { justify-content: space-between; padding-bottom: 16px; }
-  .publicExplorer .advancedToggleBtn { min-width: 144px; justify-content: center; }
+  .publicExplorer { gap: 16px; }
+  .toolbar {
+    top: var(--site-header-height-mobile, 61px);
+    margin: 0 -16px;
+    padding: 10px 16px;
+    gap: 10px;
+  }
+  /* Celular: busca + botão de filtros na 1ª linha; modalidade logo abaixo; atalhos rolam de lado. */
+  .toolbar .searchPrimary { display: grid; grid-template-columns: minmax(0, 1fr) auto; gap: 8px; }
+  .toolbar .searchRow { grid-column: 1; grid-row: 1; }
+  .mobileFiltersBtn {
+    grid-column: 2;
+    grid-row: 1;
+    position: relative;
+    display: grid;
+    place-items: center;
+    width: 48px;
+    height: 48px;
+    border: 1px solid var(--border);
+    border-radius: 50%;
+    background: var(--card-bg);
+    color: var(--foreground);
+    cursor: pointer;
+  }
+  .mobileFiltersBtn .activeBadge { position: absolute; top: -3px; right: -3px; background: var(--foreground); }
+  .toolbar .modeTabs { grid-column: 1 / -1; grid-row: 2; display: grid; grid-template-columns: repeat(4, minmax(0, 1fr)); }
+  .modeTab { padding: 0 6px; font-size: 13.5px; }
+  .toolbar .filtersBar .advancedToggleBtn:not(.quickPrice) { display: none; }
+  .toolbar .filtersBar { margin: -2px -16px; padding: 2px 16px; }
+  .publicExplorer .grid { grid-template-columns: minmax(0, 1fr); row-gap: 32px; }
+  .publicExplorer .resultsHeader { align-items: flex-end; flex-wrap: nowrap; padding-top: 4px; scroll-margin-top: 230px; }
+  .resultsTitle { font-size: 20px; }
+  .publicExplorer .resultsCount { font-size: 13px; }
+  .publicExplorer .sortLabelText { display: none; }
+  .publicExplorer .sortSelect { max-width: 168px; }
 }

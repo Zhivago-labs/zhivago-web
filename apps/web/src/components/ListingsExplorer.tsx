@@ -419,10 +419,30 @@ export function ListingsExplorer({
   const showSuggestions =
     searchOpen && (recentSearches.length > 0 || locationSuggestions.length > 0);
 
+  // Título que descreve a busca atual, como nos portais: "Apartamentos para alugar em Timóteo".
+  const noun = activeType === "casa" ? "Casas" : activeType === "apartamento" ? "Apartamentos" : "Imóveis";
+  const modality = { todos: "", venda: " à venda", aluguel: " para alugar", temporada: " para temporada" }[activeCategory];
+  const place = query.trim() ? ` em ${query.trim()}` : "";
+  const resultsTitle = modality || place ? `${noun}${modality}${place}` : activeType ? noun : "Imóveis disponíveis";
+  const countLabel = `${filtered.length} ${filtered.length === 1 ? "imóvel" : "imóveis"}`;
+
+  const categoryTabs = (
+    <div className={styles.modeTabs} role="group" aria-label="Modalidade">
+      {(([["todos", "Todos"], ["venda", "Comprar"], ["aluguel", "Alugar"], ["temporada", "Temporada"]]) as const).map(([value, label]) => (
+        <button key={value} type="button" aria-pressed={activeCategory === value}
+          className={`${styles.modeTab} ${activeCategory === value ? styles.modeTabActive : ""}`}
+          onClick={() => setActiveCategory(value)}>
+          {label}
+        </button>
+      ))}
+    </div>
+  );
+
   return (
     <div className={`${styles.explorerContainer} ${showcase ? styles.showcaseExplorer : styles.publicExplorer}`}>
-      <div className={styles.searchControls}>
+      <div className={showcase ? styles.searchControls : styles.toolbar}>
       <div className={styles.searchPrimary}>
+      {!showcase && categoryTabs}
       {/* ── BUSCA ── */}
       <div className={styles.searchRow}>
         <div className={styles.searchBox}>
@@ -522,7 +542,7 @@ export function ListingsExplorer({
         </div>
       </div>
 
-        <div className={styles.filterGroup}>
+        {showcase && <div className={styles.filterGroup}>
           <FilterChip label="Todos" active={activeCategory === "todos"} onClick={() => setActiveCategory("todos")} />
           <FilterChip
             label="Alugar"
@@ -539,7 +559,15 @@ export function ListingsExplorer({
             active={activeCategory === "temporada"}
             onClick={() => setActiveCategory(activeCategory === "temporada" ? "todos" : "temporada")}
           />
-        </div>
+        </div>}
+
+        {!showcase && (
+          <button type="button" className={styles.mobileFiltersBtn} onClick={() => setFiltersModalOpen(true)}
+            aria-label={activeAdvancedCount > 0 ? `Filtros, ${activeAdvancedCount} ativos` : "Filtros"}>
+            <SlidersHorizontal size={18} aria-hidden="true" />
+            {activeAdvancedCount > 0 && <span className={styles.activeBadge}>{activeAdvancedCount}</span>}
+          </button>
+        )}
 
       </div>
       {/* ── FILTROS PRIMÁRIOS ── */}
@@ -789,13 +817,22 @@ export function ListingsExplorer({
       )}
 
       {/* ── RESULTADOS ── */}
-      {!loadError && (
+      {(!loadError || !showcase) && (
         <div className={styles.resultsHeader} ref={resultsRef}>
-          <span className={styles.resultsCount} role="status" aria-live="polite">
-            {loading ? <span style={{ visibility: "hidden" }} aria-hidden="true">0 imóveis encontrados</span> : <>{filtered.length} {filtered.length === 1 ? "imóvel encontrado" : "imóveis encontrados"}</>}
-          </span>
+          {showcase ? (
+            <span className={styles.resultsCount} role="status" aria-live="polite">
+              {loading ? <span style={{ visibility: "hidden" }} aria-hidden="true">0 imóveis encontrados</span> : <>{filtered.length} {filtered.length === 1 ? "imóvel encontrado" : "imóveis encontrados"}</>}
+            </span>
+          ) : (
+            <div className={styles.resultsHeading}>
+              <h1 className={styles.resultsTitle}>{resultsTitle}</h1>
+              <p className={styles.resultsCount} role="status" aria-live="polite">
+                {loading ? "Buscando imóveis…" : loadError ? "" : `${countLabel} ${filtered.length === 1 ? "encontrado" : "encontrados"}`}
+              </p>
+            </div>
+          )}
 
-          <label className={styles.sortLabel}>
+          {!loadError && <label className={styles.sortLabel}>
             <span className={styles.sortLabelText}>Ordenar por</span>
             <select
               className={styles.sortSelect}
@@ -808,7 +845,7 @@ export function ListingsExplorer({
                 </option>
               ))}
             </select>
-          </label>
+          </label>}
         </div>
       )}
 

@@ -40,11 +40,7 @@ export default async function ImoveisPage({ searchParams }: Props) {
 
   return (
     <main className={styles.main}>
-      <div className={styles.heroSection}>
-        <h1 className={styles.title}>Explorar imóveis</h1>
-        <p className={styles.subtitle}>Encontre seu próximo endereço.</p>
-      </div>
-
+      {/* O título (h1) fica no topo dos resultados e descreve a busca atual. */}
       <StreamingListingsExplorer
         result={result}
         isAdmin={user?.role === "ADMIN"}

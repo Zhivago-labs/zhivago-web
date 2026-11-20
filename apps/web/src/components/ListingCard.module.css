@@ -296,31 +296,130 @@
   color: var(--muted);
 }
 
-/* Exploration variant: preserve the shared home and agency cards. */
-.exploreCard { border-radius: var(--radius-lg); height: 100%; }
-.exploreCard:hover { transform: none; }
-.exploreCard .info { display: flex; flex-direction: column; gap: 8px; }
-.exploreCard .priceRow { order: -3; margin: 0; padding: 0; border: 0; gap: 6px; }
-.exploreCard .price { font-size: 22px; line-height: 1.3; }
-.exploreCard .period { font-size: 14px; }
-.exploreCard .location { order: -2; font-size: 15px; font-weight: 600; color: var(--foreground); margin: 0; min-height: 42px; line-height: 1.4; }
-.exploreCard .name { order: -1; font-size: 14px; font-weight: 400; color: var(--muted); min-height: 38px; line-height: 1.35; }
-.exploreCard .name, .exploreCard .location { display: -webkit-box; -webkit-box-orient: vertical; -webkit-line-clamp: 2; overflow: hidden; }
-.exploreCard .amenities { margin: 0; padding: 0; border: 0; gap: 12px; flex-wrap: wrap; font-size: 13px; }
-.exploreCard .tagRow { order: 2; margin: 4px 0 0; min-height: 24px; }
-.exploreCard .typeTag { font-size: 12px; text-transform: none; }
-.exploreCard .verifiedTag { font-size: 12px; }
-.operationBadge { position: absolute; top: 12px; left: 12px; background: var(--brand-pink); color: #ffffff; padding: 6px 10px; border-radius: var(--radius-sm); font-size: 12px; font-weight: 600; letter-spacing: 0.01em; box-shadow: 0 2px 6px rgba(15, 23, 42, 0.18); }
+/* Card sem foto (vitrine, home e exploração). */
 .noPhoto { display: grid; place-items: center; height: 100%; color: var(--muted); font-size: 14px; }
-.exploreCard .cardArrow { width: 44px; height: 44px; }
-.exploreCard .imageOverlayBadge { min-height: 44px; font-size: 12px; }
-.exploreCard .favoriteWrap button { min-width: 44px; min-height: 44px; }
 .card:focus-within .cardArrow { opacity: 1; }
-.exploreCard :focus-visible { outline: 2px solid var(--accent); outline-offset: -2px; }
-@media (hover: none) { .exploreCard .cardArrow { opacity: 1; } }
 @media (prefers-reduced-motion: reduce) { .image { transition: none; } .card:hover .image { transform: none; } }
 
-.exploreCard .imageWrap:has(.noPhoto) { cursor: default; }
-.exploreCard .categoryTag[hidden], .exploreCard .dotsPagination[hidden] { display: none; }
+/* ─── CARD DE EXPLORAÇÃO (/imoveis) ─────────────────────────────────────────
+   Sem moldura: a foto é o card, e o texto vem logo abaixo em hierarquia curta
+   (região → nome → características → preço → custo total → anunciante). */
+.ex { position: relative; display: flex; flex-direction: column; gap: 12px; min-width: 0; color: var(--foreground); }
 
-.exploreCard .advertiser { order: 3; font-size: 12px; line-height: 1.5; color: var(--muted); overflow: hidden; text-overflow: ellipsis; white-space: nowrap; }
+.exMedia {
+  position: relative;
+  aspect-ratio: 4 / 3;
+  border-radius: 14px;
+  overflow: hidden;
+  background: var(--surface-subtle);
+  cursor: pointer;
+  isolation: isolate;
+}
+.exMedia:has(.noPhoto) { cursor: default; }
+.exImage { width: 100%; height: 100%; object-fit: cover; display: block; transition: transform 0.45s cubic-bezier(0.2, 0.7, 0.2, 1); }
+.ex:hover .exImage { transform: scale(1.035); }
+/* Leve escurecimento no topo e na base: os selos e os pontinhos continuam legíveis sobre fotos claras. */
+.exMedia::after {
+  content: "";
+  position: absolute;
+  inset: 0;
+  background: linear-gradient(to bottom, rgba(15, 23, 42, 0.22) 0%, transparent 28%, transparent 70%, rgba(15, 23, 42, 0.28) 100%);
+  pointer-events: none;
+  z-index: 1;
+}
+
+.exBadges { position: absolute; top: 12px; left: 12px; display: flex; gap: 6px; z-index: 3; }
+.exBadge {
+  display: inline-flex;
+  align-items: center;
+  height: 26px;
+  padding: 0 10px;
+  border-radius: var(--radius-full);
+  background: rgba(255, 255, 255, 0.95);
+  color: var(--foreground);
+  font-size: 12px;
+  font-weight: 700;
+  letter-spacing: 0.01em;
+  box-shadow: 0 1px 4px rgba(15, 23, 42, 0.16);
+}
+.exBadgeDark { background: var(--foreground); color: #ffffff; }
+.exBadgeDeal { background: var(--brand-pink); color: #ffffff; }
+
+.ex .favoriteWrap { top: 8px; right: 8px; z-index: 4; }
+.ex .favoriteWrap button { min-width: 44px; min-height: 44px; }
+
+.exArrow {
+  position: absolute;
+  top: 50%;
+  z-index: 3;
+  width: 36px;
+  height: 36px;
+  display: grid;
+  place-items: center;
+  border: 0;
+  border-radius: 50%;
+  background: rgba(255, 255, 255, 0.94);
+  color: var(--foreground);
+  box-shadow: 0 2px 8px rgba(15, 23, 42, 0.22);
+  cursor: pointer;
+  opacity: 0;
+  transform: translateY(-50%) scale(0.92);
+  transition: opacity 0.18s ease, transform 0.18s ease;
+}
+.exArrowLeft { left: 10px; }
+.exArrowRight { right: 10px; }
+.ex:hover .exArrow, .exMedia:focus-within .exArrow { opacity: 1; transform: translateY(-50%) scale(1); }
+.exArrow:hover { background: #ffffff; }
+
+.exDots { position: absolute; bottom: 12px; left: 50%; transform: translateX(-50%); display: flex; gap: 5px; z-index: 3; pointer-events: none; }
+.exDot { width: 6px; height: 6px; border-radius: 50%; background: rgba(255, 255, 255, 0.55); transition: background 0.2s ease, transform 0.2s ease; }
+.exDotActive { background: #ffffff; transform: scale(1.2); }
+
+.exGallery {
+  position: absolute;
+  right: 10px;
+  bottom: 8px;
+  z-index: 3;
+  display: inline-flex;
+  align-items: center;
+  gap: 5px;
+  min-height: 32px;
+  padding: 0 10px;
+  border: 0;
+  border-radius: var(--radius-full);
+  background: rgba(15, 23, 42, 0.62);
+  color: #ffffff;
+  font: inherit;
+  font-size: 12px;
+  font-weight: 600;
+  cursor: pointer;
+  backdrop-filter: blur(4px);
+}
+.exGallery:hover { background: rgba(15, 23, 42, 0.82); }
+
+.exInfo { display: flex; flex-direction: column; gap: 3px; text-decoration: none; color: inherit; border-radius: 8px; }
+.exInfo::after { content: ""; position: absolute; inset: 0; z-index: 0; } /* o card inteiro abre o anúncio… */
+.exMedia { z-index: 1; } /* …menos a foto, que abre a galeria */
+.exKicker { margin: 0 0 2px; font-size: 12px; font-weight: 600; letter-spacing: 0.06em; text-transform: uppercase; color: var(--muted); }
+.exRegion { margin: 0; font-size: 15.5px; font-weight: 650; line-height: 1.35; letter-spacing: -0.01em; color: var(--foreground); overflow: hidden; text-overflow: ellipsis; white-space: nowrap; }
+.exName { margin: 0; font-size: 14px; line-height: 1.4; color: var(--muted); overflow: hidden; text-overflow: ellipsis; white-space: nowrap; }
+.exFeatures { margin: 2px 0 0; display: flex; flex-wrap: wrap; row-gap: 2px; white-space: nowrap; font-size: 13.5px; line-height: 1.45; color: var(--muted); }
+.exSep { margin: 0 6px; color: var(--border-hover, #cbd5e1); }
+.exPriceRow { margin-top: 8px; display: flex; align-items: baseline; flex-wrap: wrap; gap: 6px; }
+.exPrice { font-size: 19px; font-weight: 750; letter-spacing: -0.02em; color: var(--foreground); }
+.exPeriod { font-size: 14px; color: var(--muted); margin-left: -3px; }
+.exOldPrice { font-size: 13.5px; color: var(--muted); }
+.exCost { margin: 0; font-size: 13px; line-height: 1.4; color: var(--muted); }
+.exAdvertiser { margin: 6px 0 0; display: flex; align-items: center; gap: 5px; font-size: 12.5px; color: var(--muted); min-width: 0; }
+.exAdvertiser span { overflow: hidden; text-overflow: ellipsis; white-space: nowrap; }
+.exVerified { flex-shrink: 0; color: #16a34a; }
+.exInfo:focus-visible { outline: 2px solid var(--brand-pink); outline-offset: 4px; }
+.ex :focus-visible { outline: 2px solid var(--brand-pink); outline-offset: 2px; }
+
+@media (hover: none) {
+  .exArrow { opacity: 1; transform: translateY(-50%) scale(1); width: 32px; height: 32px; background: rgba(255, 255, 255, 0.85); }
+}
+@media (prefers-reduced-motion: reduce) {
+  .exImage, .exArrow, .exDot { transition: none; }
+  .ex:hover .exImage { transform: none; }
+}
