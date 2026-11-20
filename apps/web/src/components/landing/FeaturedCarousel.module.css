@@ -1,0 +1,46 @@
+.carousel { display: flex; flex-direction: column; gap: 24px; min-width: 0; }
+
+.head { display: flex; align-items: flex-end; justify-content: space-between; gap: 16px; }
+.controls { display: flex; align-items: center; gap: 8px; flex-shrink: 0; }
+.controls > a { margin-right: 8px; }
+
+.control {
+  display: grid;
+  place-items: center;
+  width: 40px;
+  height: 40px;
+  border: 1px solid var(--line);
+  border-radius: 50%;
+  background: #ffffff;
+  color: var(--ink);
+  cursor: pointer;
+  transition: border-color 0.15s ease, transform 0.15s ease, box-shadow 0.15s ease;
+}
+.control:hover { border-color: var(--ink); box-shadow: 0 2px 8px rgba(18, 21, 28, 0.12); }
+
+/* Trilha com rolagem lateral nativa (arrastar no celular) e encaixe em cada card. */
+.track {
+  position: relative;
+  display: grid;
+  grid-auto-flow: column;
+  grid-auto-columns: calc((100% - 3 * 24px) / 4);
+  gap: 24px;
+  overflow-x: auto;
+  overscroll-behavior-x: contain;
+  scroll-snap-type: x mandatory;
+  scrollbar-width: none;
+  padding-bottom: 4px;
+}
+.track::-webkit-scrollbar { display: none; }
+.slide { scroll-snap-align: start; min-width: 0; }
+
+@media (max-width: 1100px) { .track { grid-auto-columns: calc((100% - 2 * 24px) / 3); } }
+@media (max-width: 820px) { .track { grid-auto-columns: calc((100% - 20px) / 2); gap: 20px; } }
+@media (max-width: 560px) {
+  .head { flex-direction: column; align-items: flex-start; }
+  .controls { width: 100%; }
+  .controls > a { margin-right: auto; }
+  /* Mostra a pontinha do próximo card: sinal de que dá para arrastar. */
+  .track { grid-auto-columns: 84%; gap: 14px; margin-right: -20px; padding-right: 20px; scroll-padding-left: 0; }
+}
+@media (prefers-reduced-motion: reduce) { .control { transition: none; } }

@@ -63,7 +63,20 @@ export function HomeHero({ suggestions }: { suggestions: string[] }) {
 
   return (
     <header className={styles.hero}>
-      <div className={`${shared.wrap} ${styles.inner}`}>
+      <div className={`${shared.wrap} ${styles.heroWrap}`}>
+       <div className={styles.stage}>
+        {/* Ilustração do próprio site (litoral, cidade, serra e interior): o "palco" da busca. */}
+        <picture className={styles.art}>
+          <source type="image/avif" sizes="(max-width: 1240px) 100vw, 1240px"
+            srcSet="/images/system/auth-bg-1024.avif 1024w, /images/system/auth-bg-1920.avif 1920w" />
+          <source type="image/webp" sizes="(max-width: 1240px) 100vw, 1240px"
+            srcSet="/images/system/auth-bg-1024.webp 1024w, /images/system/auth-bg-1920.webp 1920w" />
+          <img src="/images/system/auth-bg-1920.jpg" sizes="(max-width: 1240px) 100vw, 1240px"
+            srcSet="/images/system/auth-bg-1024.jpg 1024w, /images/system/auth-bg-1920.jpg 1920w"
+            alt="" fetchPriority="high" decoding="async" />
+        </picture>
+
+        <div className={styles.inner}>
         <h1 className={styles.title}>Encontre seu próximo imóvel. Fale direto com quem anuncia.</h1>
         <p className={styles.sub}>Casas e apartamentos para comprar, alugar ou ficar por temporada, em um só lugar.</p>
 
@@ -142,10 +155,12 @@ export function HomeHero({ suggestions }: { suggestions: string[] }) {
 
             <button type="submit" className={styles.submit}>
               <Search size={18} aria-hidden="true" />
-              <span>Buscar imóveis</span>
+              <span>Buscar</span>
             </button>
           </div>
         </form>
+        </div>
+       </div>
       </div>
     </header>
   );

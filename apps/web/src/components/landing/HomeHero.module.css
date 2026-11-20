@@ -227,3 +227,102 @@
     font-size: 16px; /* evita zoom automático no iOS */
   }
 }
+
+/* ═══ REDESIGN: palco ilustrado + busca em pílula ═══════════════════════════ */
+.hero { padding: 16px 0 8px; border-bottom: 0; }
+.heroWrap { max-width: 1320px; }
+
+.stage {
+  position: relative;
+  isolation: isolate;
+  overflow: hidden;
+  min-height: 560px;
+  padding: 72px 48px 48px;
+  border-radius: 32px;
+  display: flex;
+  background: #cfe6ee;
+}
+.art, .art img { position: absolute; inset: 0; width: 100%; height: 100%; }
+.art { z-index: -2; }
+.art img { object-fit: cover; object-position: center 62%; }
+/* Véu claro no alto (céu) para o título; mais escuro embaixo para a busca saltar da imagem. */
+.stage::before {
+  content: "";
+  position: absolute;
+  inset: 0;
+  z-index: -1;
+  background:
+    linear-gradient(to bottom, rgba(251, 247, 241, 0.78) 0%, rgba(251, 247, 241, 0.35) 34%, rgba(251, 247, 241, 0) 52%),
+    linear-gradient(to top, rgba(18, 21, 28, 0.42) 0%, rgba(18, 21, 28, 0) 38%);
+}
+
+.inner { width: 100%; justify-content: space-between; gap: 28px; }
+.title { max-width: 860px; font-size: clamp(34px, 5.2vw, 62px); line-height: 1.04; letter-spacing: -0.02em; }
+.sub { color: #2b3240; font-size: clamp(15px, 1.6vw, 18px); font-weight: 500; }
+
+.search { max-width: 980px; margin-top: auto; display: flex; flex-direction: column; align-items: center; }
+.operations {
+  margin-bottom: 14px;
+  border: 0;
+  background: rgba(255, 255, 255, 0.86);
+  backdrop-filter: blur(10px);
+  -webkit-backdrop-filter: blur(10px);
+  box-shadow: 0 4px 18px rgba(18, 21, 28, 0.14);
+}
+.operation { padding: 9px 20px; }
+
+.fields {
+  width: 100%;
+  border: 0;
+  border-radius: 999px;
+  padding: 8px;
+  gap: 0;
+  box-shadow: 0 18px 48px -12px rgba(18, 21, 28, 0.38), 0 2px 6px rgba(18, 21, 28, 0.08);
+  overflow: visible;
+}
+.field { padding: 10px 26px; border-right: 0; border-radius: 999px; position: relative; transition: background 0.15s ease; }
+.field + .field::before { content: ""; position: absolute; left: 0; top: 22%; bottom: 22%; width: 1px; background: var(--line); }
+.field:hover { background: #f6f2ec; }
+.field:focus-within { background: #f6f2ec; box-shadow: none; }
+.field:hover::before, .field:focus-within::before, .field:hover + .field::before, .field:focus-within + .field::before { opacity: 0; }
+.field label { font-size: 12.5px; letter-spacing: 0.01em; }
+.submit { margin: 0 0 0 8px; min-height: 60px; padding: 0 30px; border-radius: 999px; font-size: 16px; }
+
+@media (max-width: 860px) {
+  .stage { min-height: 0; padding: 48px 24px 28px; border-radius: 24px; }
+  .fields { border-radius: 24px; padding: 6px; }
+  .field { border-radius: 16px; }
+  .field + .field::before { display: none; }
+  .fieldWhere { border-bottom: 1px solid var(--line); border-radius: 16px 16px 0 0; }
+  .submit { margin: 6px 0 0; min-height: 52px; }
+}
+@media (max-width: 560px) {
+  .hero { padding: 8px 0 4px; }
+  .stage { padding: 36px 18px 18px; border-radius: 22px; }
+  .inner { gap: 20px; }
+  .title { font-size: 31px; }
+  .fields { border-radius: 20px; }
+  .field { border-bottom: 1px solid var(--line); border-radius: 0; }
+  .fieldWhere { border-radius: 14px 14px 0 0; }
+  .search { align-items: stretch; }
+}
+
+/* Ajuste de leitura: mais céu atrás do texto e véu mais firme até o subtítulo. */
+.art img { object-position: center 14%; }
+.stage::before {
+  background:
+    radial-gradient(ellipse 70% 58% at 50% 22%, rgba(251, 247, 241, 0.92) 0%, rgba(251, 247, 241, 0.7) 45%, rgba(251, 247, 241, 0) 75%),
+    linear-gradient(to top, rgba(18, 21, 28, 0.45) 0%, rgba(18, 21, 28, 0) 36%);
+}
+.title { max-width: 900px; font-size: clamp(32px, 4.6vw, 58px); }
+.sub { color: #1f2530; font-weight: 600; }
+@media (max-width: 560px) {
+  .stage::before {
+    background:
+      linear-gradient(to bottom, rgba(251, 247, 241, 0.93) 0%, rgba(251, 247, 241, 0.75) 40%, rgba(251, 247, 241, 0) 62%),
+      linear-gradient(to top, rgba(18, 21, 28, 0.4) 0%, rgba(18, 21, 28, 0) 30%);
+  }
+}
+/* fieldset tem min-width: min-content por padrão — sem isso as abas vazavam do quadro no celular. */
+.operations { min-width: 0; max-width: 100%; }
+@media (max-width: 560px) { .operations { box-sizing: border-box; } .operation { padding: 9px 2px; } }
