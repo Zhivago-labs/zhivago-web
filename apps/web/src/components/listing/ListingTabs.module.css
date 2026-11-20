@@ -81,3 +81,7 @@
     animation: none;
   }
 }
+
+/* Redesign: aba ativa em preto (mesma linguagem da busca), rótulos um pouco maiores. */
+.tab { min-height: 52px; font-size: 15px; }
+.active { border-bottom-color: var(--foreground); }

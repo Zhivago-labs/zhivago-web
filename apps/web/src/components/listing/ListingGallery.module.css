@@ -151,3 +151,18 @@
     display: none;
   }
 }
+
+/* ── Redesign: cantos maiores e controles claros, iguais aos cards da busca ── */
+@media (min-width: 769px) { .gallery { height: 460px; } }
+.main { border-radius: 20px 8px 8px 20px; }
+.galleryOnlyMain .main { border-radius: 20px; }
+.thumb { border-radius: 8px; }
+.thumb:first-child { border-top-right-radius: 20px; }
+.thumb:last-child { border-bottom-right-radius: 20px; }
+.counter, .moreOverlay { height: 30px; display: inline-flex; align-items: center; padding: 0 12px; border-radius: 9999px; background: rgba(255, 255, 255, 0.95); color: var(--foreground); font-weight: 700; box-shadow: 0 1px 4px rgba(15, 23, 42, 0.16); }
+.arrow { width: 40px; height: 40px; background: rgba(255, 255, 255, 0.94); color: var(--foreground); box-shadow: 0 2px 8px rgba(15, 23, 42, 0.22); }
+.arrow:hover { background: #ffffff; }
+.expand { width: 40px; height: 40px; border-radius: 50%; background: rgba(255, 255, 255, 0.94); color: var(--foreground); box-shadow: 0 2px 8px rgba(15, 23, 42, 0.22); }
+@media (max-width: 768px) {
+  .main { border-radius: 16px; aspect-ratio: 4 / 3; }
+}

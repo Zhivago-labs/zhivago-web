@@ -553,6 +553,9 @@ export default async function ListingPage({ params, searchParams }: Params & { s
           </ListingGallery>
 
           <header className={styles.header}>
+            <p className={styles.kicker}>
+              {listing.type === "apartamento" ? "Apartamento" : "Casa"} · {closedLabel ?? OPERATION_LABEL[listing.operationType]}
+            </p>
             <p className={styles.place}>
               <MapPin size={17} />
               {place}
@@ -673,7 +676,7 @@ export default async function ListingPage({ params, searchParams }: Params & { s
       </div>
 
       {/* Barra fixa no celular: preço + ação principal */}
-      <div className={styles.footer}>
+      <div className={styles.footer} data-listing-footer>
         <div>
           <p className={styles.footerPrice}>
             {brl(listing.price)}

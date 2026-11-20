@@ -90,3 +90,8 @@
   opacity: 0 !important;
   pointer-events: none !important;
 }
+
+/* Página do anúncio no celular: sobe acima da barra fixa de preço/contato, que ficava coberta. */
+@media (max-width: 1023px) {
+  :global(body:has([data-listing-footer])) .fabButton { bottom: calc(90px + env(safe-area-inset-bottom)); }
+}

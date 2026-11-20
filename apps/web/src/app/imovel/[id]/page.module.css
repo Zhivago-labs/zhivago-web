@@ -991,3 +991,130 @@
     grid-template-columns: minmax(0, 1fr);
   }
 }
+
+/* ═══ REDESIGN (mesma linguagem da /imoveis) ════════════════════════════════
+   Menos caixas e bordas, tipografia maior, preto para o que é ação/seleção e
+   pílulas nos botões e selos. Só visual — estrutura e funcionalidades iguais. */
+
+.main { max-width: 1280px; padding: 20px 32px 96px; }
+@media (min-width: 1024px) {
+  .layout { grid-template-columns: minmax(0, 1fr) 360px; gap: 48px; }
+}
+
+.backLink { margin-bottom: 16px; font-size: 14px; font-weight: 500; color: var(--muted); }
+
+.closedBadge {
+  top: 16px;
+  right: auto;
+  left: 16px;
+  padding: 0 12px;
+  height: 30px;
+  display: inline-flex;
+  align-items: center;
+  border-radius: var(--radius-full);
+  font-size: 12px;
+  letter-spacing: 0.04em;
+}
+
+/* Título: tipo e modalidade em cima, nome grande, região abaixo */
+.header { margin-top: 28px; display: flex; flex-direction: column; }
+.kicker { margin: 0 0 8px; font-size: 12.5px; font-weight: 600; letter-spacing: 0.06em; text-transform: uppercase; color: var(--muted); }
+.title { font-size: 32px; font-weight: 750; letter-spacing: -0.03em; line-height: 1.15; }
+.place { order: 2; margin: 10px 0 0; font-size: 15px; color: var(--muted); }
+.place svg { color: var(--foreground); }
+
+/* Características: faixa entre divisórias, como uma ficha rápida */
+.specs { margin: 24px 0 32px; padding: 18px 0; gap: 12px 0; border-top: 1px solid var(--border); border-bottom: 1px solid var(--border); }
+.spec { margin-right: 32px; gap: 10px; font-size: 15px; font-weight: 500; color: var(--foreground); }
+.spec svg { color: var(--muted); }
+
+/* Abas sem caixa: o conteúdo respira direto na página */
+.panel { background: transparent; border: 0; box-shadow: none; border-radius: 0; padding: 0; }
+.tabTitle { font-size: 20px; font-weight: 700; letter-spacing: -0.02em; }
+.box { border: 0; border-radius: 16px; padding: 20px; }
+.boxTitle { font-size: 15px; margin-bottom: 12px; }
+.highlights { border: 1px solid var(--border); border-radius: 16px; padding: 20px; }
+.highlightList { gap: 14px 24px; }
+.highlightList li { font-size: 14px; color: var(--foreground); }
+.fact { padding: 11px 0; font-size: 14px; }
+
+.conditionGrid { gap: 14px; }
+.condition { padding: 14px 16px; border: 1px solid var(--border); border-radius: 14px; background: var(--card-bg); align-items: center; gap: 12px; }
+.condition svg { margin-top: 0; color: var(--muted); }
+.conditionLabel { font-size: 12.5px; }
+.conditionValue { font-size: 15px; font-weight: 650; margin-top: 2px; }
+
+.locationInfo .address { font-size: 15px; color: var(--foreground); }
+.neighborhood { border: 0; border-radius: 14px; padding: 16px 18px; }
+.mapButton, .mapActions .mapButton { border-radius: var(--radius-full); }
+.mapButton:hover { border-color: var(--foreground); background: var(--card-bg); }
+.mapLarge { border: 0; border-radius: 16px; }
+
+.advertiserFacts div { border: 0; border-radius: 14px; }
+.secondaryButton { border-radius: var(--radius-full); border-color: var(--border); }
+.terms a { color: var(--foreground); }
+
+/* Coluna lateral: acompanha a rolagem no computador */
+@media (min-width: 1024px) {
+  .sidebar { position: sticky; top: calc(var(--site-header-height, 59px) + 24px); gap: 16px; }
+}
+.card { border-radius: 20px; padding: 24px; box-shadow: 0 1px 2px rgba(15, 23, 42, 0.04), 0 12px 32px -12px rgba(15, 23, 42, 0.16); }
+
+.operationBadge {
+  display: inline-flex;
+  align-items: center;
+  height: 26px;
+  padding: 0 10px;
+  margin-bottom: 14px;
+  border-radius: var(--radius-full);
+  background: var(--foreground);
+  color: #ffffff;
+  font-size: 11.5px;
+  letter-spacing: 0.04em;
+}
+.operationBadgeClosed { background: var(--surface-subtle); color: var(--muted); border: 1px solid var(--border); }
+
+.oldPrice { font-size: 16px; font-weight: 500; margin-bottom: 2px; }
+.price { font-size: 32px; font-weight: 750; letter-spacing: -0.03em; line-height: 1.15; align-items: baseline; }
+.priceSuffix { font-size: 15px; margin-left: -4px; }
+.discountBadge { align-self: center; height: 24px; display: inline-flex; align-items: center; padding: 0 9px; background: var(--brand-pink); color: #ffffff; font-size: 12px; font-weight: 700; letter-spacing: 0; }
+
+.fees { margin-top: 14px; padding-top: 14px; border-top: 1px solid var(--border); gap: 10px; }
+.fees li { font-size: 14px; color: var(--foreground); }
+.fees svg { color: var(--muted); }
+
+.cardActions { margin-top: 22px; }
+.primaryButton,
+.chatCta button { height: 50px; border-radius: var(--radius-full); font-size: 15px; }
+.primaryButton:hover,
+.chatCta button:hover:not(:disabled) { background: #1e293b; box-shadow: none; }
+.cardActions > button { height: 46px; border-radius: var(--radius-full); }
+.disabledButton { border-radius: var(--radius-full); }
+
+.advertiserMini { margin-top: 18px; padding: 14px 0 0; border: 0; border-top: 1px solid var(--border); border-radius: 0; }
+.advertiserMini:hover { background: transparent; border-color: var(--border); }
+.advertiserMini:hover .advertiserName { text-decoration: underline; }
+
+/* Semelhantes */
+.cardTitle { font-size: 16px; font-weight: 700; margin-bottom: 14px; }
+.seeAll { font-size: 13px; font-weight: 600; color: var(--foreground); text-decoration: underline; text-underline-offset: 3px; }
+.similarRow { gap: 14px; grid-auto-columns: calc(50% - 7px); }
+.similarImg { border-radius: 12px; margin-bottom: 8px; }
+.similarPrice { font-size: 14px; }
+.similarName { font-size: 13px; color: var(--muted); }
+.similarSpecs { font-size: 12px; color: var(--muted); }
+
+/* Barra fixa do celular */
+.footer { padding: 12px 16px calc(12px + env(safe-area-inset-bottom)); box-shadow: 0 -8px 24px rgba(15, 23, 42, 0.08); }
+.footerPrice { font-size: 20px; font-weight: 750; letter-spacing: -0.02em; }
+.footerButton, .whatsappButton, .footerActions button { height: 46px; border-radius: var(--radius-full); padding: 0 20px; }
+.footer .disabledButton { height: 46px; }
+
+@media (max-width: 767px) {
+  .main { padding: 12px 16px 120px; }
+  .title { font-size: 25px; }
+  .header { margin-top: 20px; }
+  .specs { margin: 18px 0 24px; padding: 14px 0; }
+  .spec { margin-right: 20px; font-size: 14px; }
+  .card { padding: 20px; }
+}
