@@ -1,13 +1,14 @@
 "use client";
 
-import { useCallback, useEffect, useState, Suspense, useMemo } from "react";
+import { useEffect, useState, Suspense, useMemo } from "react";
 import { useSearchParams } from "next/navigation";
 import { X, ArrowLeft, MessageCircle, Search, Building2 } from "lucide-react";
 import { useChatSocket } from "./ChatSocketProvider";
 import { ChatConversation } from "./ChatConversation";
 import { avatarUrl, messagePreview } from "./chat-utils";
 import { getPublicApiUrl } from "@/lib/public-api";
-import type { ConversationListItem, ConversationDetail, ChatMessage } from "@/lib/chat-api";
+import type { ConversationDetail, ChatMessage } from "@/lib/chat-api";
+import { inboxItems, inboxLabels, unreadMessages, type InboxFilter } from "@/lib/chat-inbox";
 import styles from "./ChatSidebar.module.css";
 
 function formatTime(value: string): string {
@@ -28,11 +29,8 @@ function ChatParamListener() {
   useEffect(() => {
     const openChatParam = searchParams.get("openChat");
     if (openChatParam) {
-      if (openChatParam === "true") {
-        openSidebar();
-      } else {
-        openSidebar(openChatParam);
-      }
+      const filter = window.location.pathname === "/empresa/mensagens" ? "organization" : undefined;
+      openSidebar(openChatParam === "true" ? undefined : openChatParam, filter);
       // Limpa a URL silenciosamente sem causar reload nem re-render na aplicação
       const url = new URL(window.location.href);
       url.searchParams.delete("openChat");
@@ -85,47 +83,22 @@ type LoadedDetail =
 export function ChatSidebar() {
   const {
     isSidebarOpen,
-    activeConversationId,
+    activeConversationId: requestedId,
     token,
     user,
     closeSidebar,
     selectConversation,
-    socket,
+    conversations, inboxFilter, setInboxFilter, defaultInbox, refreshUnreadCount, inboxError,
   } = useChatSocket();
 
-  const [conversations, setConversations] = useState<ConversationListItem[] | null>(null);
+  const scoped = useMemo(() => inboxItems(conversations ?? [], inboxFilter), [conversations, inboxFilter]);
+  const activeConversationId = inboxFilter === "all" || scoped.some(c => c.id === requestedId) ? requestedId : null;
   const [detail, setDetail] = useState<LoadedDetail | null>(null);
   const [searchQuery, setSearchQuery] = useState("");
 
-  const loadConversations = useCallback(() => {
-    if (!token) return;
-    fetch(`${getPublicApiUrl()}/conversations`, {
-      headers: { Authorization: `Bearer ${token}` },
-    })
-      .then((res) => (res.ok ? res.json() : null))
-      .then((data: ConversationListItem[] | null) => {
-        if (data) setConversations(data);
-      })
-      .catch(() => {});
-  }, [token]);
-
-  // Lista de conversas: recarrega toda vez que a sidebar abre (não só na primeira).
   useEffect(() => {
-    if (!isSidebarOpen) return;
-    loadConversations();
-  }, [isSidebarOpen, loadConversations]);
-
-  // Atualiza a lista com mensagem nova e na reconexão (o que chegou durante a queda não vem pelo
-  // socket). O contador de não lidas já é atualizado pelo provider nesses mesmos eventos.
-  useEffect(() => {
-    if (!socket || !isSidebarOpen) return;
-    socket.on("receiveMessage", loadConversations);
-    socket.on("connect", loadConversations);
-    return () => {
-      socket.off("receiveMessage", loadConversations);
-      socket.off("connect", loadConversations);
-    };
-  }, [socket, isSidebarOpen, loadConversations]);
+    if (isSidebarOpen) refreshUnreadCount();
+  }, [isSidebarOpen, requestedId, refreshUnreadCount]);
 
   // Detalhe da conversa ativa: busca de novo a cada abertura da sidebar e a cada troca de
   // conversa. O cleanup descarta o que estava carregado, então a tela mostra o skeleton em vez da
@@ -174,16 +147,15 @@ export function ChatSidebar() {
 
   // Filtro de busca na lista de conversas
   const filteredConversations = useMemo(() => {
-    if (!conversations) return [];
-    if (!searchQuery.trim()) return conversations;
+    if (!searchQuery.trim()) return scoped;
     const q = searchQuery.toLowerCase();
-    return conversations.filter((c) => {
+    return scoped.filter((c) => {
       const other = c.participants.find((p) => p.id !== user?.id);
       const nameMatch = other?.name?.toLowerCase().includes(q);
       const propMatch = c.property?.name?.toLowerCase().includes(q);
       return nameMatch || propMatch;
     });
-  }, [conversations, searchQuery, user?.id]);
+  }, [scoped, searchQuery, user?.id]);
 
   const currentDetail = detail && detail.id === activeConversationId ? detail : null;
   const activeConversation = currentDetail?.conversation ?? null;
@@ -226,16 +198,19 @@ export function ChatSidebar() {
                       ? activeConversation
                         ? activeOther?.name ?? "Aguardando atendimento"
                         : "Carregando…"
-                      : "Mensagens"}
+                      : inboxLabels[inboxFilter]}
                   </h2>
                   {!activeConversationId && conversations && conversations.length > 0 && (
                     <span className={styles.subtitle}>
-                      {conversations.length} {conversations.length === 1 ? "conversa" : "conversas"}
+                      {scoped.length} {scoped.length === 1 ? "conversa" : "conversas"}
                     </span>
                   )}
                   {activeConversationId && activeConversation && !activeOther && (
                     <span className={styles.subtitle}>Um corretor vai responder em breve</span>
                   )}
+                  {activeConversation && conversations && <span className={styles.subtitle}>
+                    {inboxLabels[conversations.find(c => c.id === activeConversationId)?.inboxScope ?? "other"]}
+                  </span>}
                 </div>
               </div>
 
@@ -281,9 +256,23 @@ export function ChatSidebar() {
               ) : (
                 /* Visualização da Lista de Conversas com Busca */
                 <div className={styles.listContainer}>
+                  <div className={styles.inboxFilters} role="group" aria-label="Caixa de mensagens">
+                    {(["all", "personal", "organization"] as const).filter(filter =>
+                      filter !== "organization" || defaultInbox === "organization" || user?.accountType === "AGENCY" || conversations?.some(c => c.inboxScope === filter)
+                    ).map((filter: InboxFilter) => {
+                      const unread = unreadMessages(conversations ?? [], filter);
+                      return <button type="button" key={filter} aria-pressed={filter === inboxFilter}
+                        aria-label={`${inboxLabels[filter]}, ${unread} não lidas`}
+                        onClick={() => { selectConversation(null); setInboxFilter(filter); setSearchQuery(""); }}>
+                        {filter === "all" ? "Todas" : inboxLabels[filter]}{unread > 0 ? ` (${unread})` : ""}
+                      </button>;
+                    })}
+                  </div>
+                  <label htmlFor="chat-inbox-search" className={styles.searchLabel}>Buscar por pessoa ou imóvel</label>
                   <div className={styles.searchWrapper}>
                     <Search size={16} className={styles.searchIcon} />
                     <input
+                      id="chat-inbox-search"
                       type="text"
                       placeholder="Buscar por pessoa ou imóvel…"
                       value={searchQuery}
@@ -302,7 +291,9 @@ export function ChatSidebar() {
                     )}
                   </div>
 
-                  {conversations === null ? (
+                  {inboxError ? (
+                    <p role="alert">Não foi possível carregar as conversas. <button type="button" onClick={refreshUnreadCount}>Tentar novamente</button></p>
+                  ) : conversations === null ? (
                     <ListSkeleton />
                   ) : filteredConversations.length === 0 ? (
                     <div className={styles.emptyState}>
@@ -317,7 +308,7 @@ export function ChatSidebar() {
                         <>
                           <h3 className={styles.emptyTitle}>Sua caixa de entrada está vazia</h3>
                           <span className={styles.emptySubtext}>
-                            Inicie uma conversa diretamente na página de um imóvel de seu interesse.
+                            {inboxFilter === "organization" ? "Os atendimentos da imobiliária em que você participa aparecerão aqui." : "As conversas deste contexto aparecerão aqui."}
                           </span>
                         </>
                       )}
@@ -365,7 +356,7 @@ export function ChatSidebar() {
 
                               <div className={styles.propertyTag}>
                                 <Building2 size={12} />
-                                <span>{c.property.name}</span>
+                                <span>{c.property.name} · {inboxLabels[c.inboxScope ?? "other"]}</span>
                               </div>
                             </div>
                           </button>

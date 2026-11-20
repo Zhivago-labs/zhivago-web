@@ -12,7 +12,7 @@ const STATUS_LABEL: Record<string, { label: string; color: string }> = {
 };
 
 function formatDate(value: string): string {
-  return new Date(value).toLocaleDateString("pt-BR");
+  return new Date(value).toLocaleDateString("pt-BR", { timeZone: "UTC" });
 }
 
 export function AdminBookingCard({ booking }: { booking: AdminBooking }) {

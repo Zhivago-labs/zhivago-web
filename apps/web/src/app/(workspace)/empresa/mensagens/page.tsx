@@ -12,7 +12,7 @@ export default async function Messages() {
   return <main className={styles.page}>
     <div className={styles.header}>
       <div><h1>Mensagens</h1><p className={styles.muted}>Conversas corporativas das quais você participa, vinculadas às oportunidades autorizadas. As mensagens abrem no chat.</p></div>
-      <Link href="/empresa/mensagens?openChat=true" className={`${styles.btn} ${styles.btnPrimary}`}><ChatBubble width={18} height={18} aria-hidden="true" />Abrir central de mensagens</Link>
+      <Link href="/empresa/mensagens?openChat=true" className={`${styles.btn} ${styles.btnPrimary}`}><ChatBubble width={18} height={18} aria-hidden="true" />Abrir mensagens da imobiliária</Link>
     </div>
     <section className={styles.panel}>
       <div className={styles.panelHead}><div><span className={styles.metricIcon} data-tone="blue"><ChatBubble width={18} height={18} aria-hidden="true" /></span><div><h2>Conversas recentes</h2><p>Até 100 conversas. O histórico completo está na central.</p></div></div>{items.length > 0 && <span className={styles.count} data-tone="green">{open} em atendimento</span>}</div>

@@ -654,7 +654,9 @@ export function NewListingForm({ myOrg, buildings, userId, listing, returnTo }: 
   const issuesForStep = (step: number): Issue[] => {
     if (step === 1) return !name.trim() ? [{ field: "name", message: "Informe o título do imóvel." }] : [];
     if (step === 2) return [
-      ...(!structureConfirmed ? [{ field: "structureConfirmed", message: "Confirme as quantidades de cômodos e vagas, inclusive quando forem zero." }] : []),
+      ...(suites > bedrooms || suites > bathrooms
+        ? [{ field: "structureConfirmed", message: "Conte as suítes no total de quartos e seus banheiros no total de banheiros." }]
+        : !structureConfirmed ? [{ field: "structureConfirmed", message: "Confirme as quantidades de cômodos e vagas, inclusive quando forem zero." }] : []),
       ...([privateArea, totalArea].some(value => value !== "" && (!Number.isFinite(Number(value)) || Number(value) < 0)) ? [{ field: "privateArea", message: "Informe áreas com valores não negativos." }] : []),
     ];
     if (step === 3) return [
@@ -674,6 +676,9 @@ export function NewListingForm({ myOrg, buildings, userId, listing, returnTo }: 
     return [];
   };
   const pendingIssues = steps.flatMap(step => issuesForStep(step.id).map(issue => ({ ...issue, step: step.id })));
+  const reviewSummary = pendingIssues.length
+    ? `Revisão disponível · ${plural(pendingIssues.length, "pendência", "pendências")}`
+    : isEdit && listing?.status === "DRAFT" ? "Pronto para salvar o rascunho" : "Pronto para enviar";
   const currentIssues = issuesForStep(activeStep);
   const showStepErrors = attemptedSteps.includes(activeStep);
   /** Mensagem a exibir para um campo da etapa atual (só depois de tentar avançar ou sair do campo). */
@@ -741,7 +746,7 @@ export function NewListingForm({ myOrg, buildings, userId, listing, returnTo }: 
 
   // Situação de cada etapa para a trilha e a barra de progresso.
   const stepStatus = (step: number) => {
-    const issues = issuesForStep(step);
+    const issues = step === reviewStep ? pendingIssues : issuesForStep(step);
     if (issues.length && attemptedSteps.includes(step)) return { kind: "error" as const, count: issues.length };
     if (!issues.length && visitedSteps.includes(step) && step !== activeStep) return { kind: "done" as const, count: 0 };
     return { kind: step === activeStep ? ("current" as const) : ("todo" as const), count: issues.length };
@@ -856,7 +861,7 @@ export function NewListingForm({ myOrg, buildings, userId, listing, returnTo }: 
                 <button
                   type="button"
                   aria-current={isActive ? "step" : undefined}
-                  aria-label={`${index + 1}. ${step.title}: ${status.kind === "error" ? `${status.count} pendência(s)` : issuesForStep(step.id).length === 0 ? "requisitos atendidos" : visitedSteps.includes(step.id) ? "visitada, incompleta" : "não visitada, incompleta"}`}
+                  aria-label={`${index + 1}. ${step.title}: ${step.id === reviewStep ? reviewSummary : status.kind === "error" ? `${status.count} pendência(s)` : !status.count ? "requisitos atendidos" : visitedSteps.includes(step.id) ? "visitada, incompleta" : "não visitada, incompleta"}`}
                   className={`${styles.stepperTab} ${isActive ? styles.stepActive : ""} ${status.kind === "done" ? styles.stepDone : ""} ${status.kind === "error" ? styles.stepError : ""}`}
                   onClick={() => goTo(step.id)}
                 >
@@ -865,7 +870,7 @@ export function NewListingForm({ myOrg, buildings, userId, listing, returnTo }: 
                   </span>
                   <span className={styles.stepText}>
                     <span className={styles.stepName}>{step.title}</span>
-                    <span className={styles.stepInfo}>{status.kind === "error" ? (status.count === 1 ? "1 item a corrigir" : `${status.count} itens a corrigir`) : step.subtitle}</span>
+                    <span className={styles.stepInfo}>{step.id === reviewStep ? reviewSummary : status.kind === "error" ? (status.count === 1 ? "1 item a corrigir" : `${status.count} itens a corrigir`) : step.subtitle}</span>
                   </span>
                 </button>
               </li>
@@ -1029,9 +1034,9 @@ export function NewListingForm({ myOrg, buildings, userId, listing, returnTo }: 
                 </div>
 
                 <div className={styles.counters}>
-                  <CounterRow icon={BedDouble} title="Quartos" subtitle="Quantos quartos possui o imóvel?" value={bedrooms} onChange={(v) => { setStructureConfirmed(false); setBedrooms(v); }} />
+                  <CounterRow icon={BedDouble} title="Quartos" subtitle="Total de quartos, incluindo as suítes" value={bedrooms} onChange={(v) => { setStructureConfirmed(false); setBedrooms(v); }} />
                   <CounterRow icon={DoorClosed} title="Suítes" subtitle="Quantas suítes possui o imóvel?" value={suites} onChange={(v) => { setStructureConfirmed(false); setSuites(v); }} />
-                  <CounterRow icon={Bath} title="Banheiros" subtitle="Quantidade de banheiros" value={bathrooms} onChange={(v) => { setStructureConfirmed(false); setBathrooms(v); }} />
+                  <CounterRow icon={Bath} title="Banheiros" subtitle="Total de banheiros, incluindo os das suítes" value={bathrooms} onChange={(v) => { setStructureConfirmed(false); setBathrooms(v); }} />
                   <CounterRow icon={Car} title="Vagas de garagem" subtitle="Quantidade de vagas" value={parking} onChange={(v) => { setStructureConfirmed(false); setParking(v); }} />
                 </div>
 
@@ -1462,6 +1467,7 @@ export function NewListingForm({ myOrg, buildings, userId, listing, returnTo }: 
                     </div>
                   )}
                   {description.trim() && <p className={styles.previewDesc}>{description}</p>}
+                  {description.trim() && cidade.trim() && <p className={styles.hint}>Confira se a localização mencionada na descrição corresponde a {cidade}{uf ? `/${uf}` : ""}.</p>}
                 </div>
               </section>
 

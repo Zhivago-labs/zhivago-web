@@ -22,23 +22,22 @@ export function InviteMemberForm() {
       </div>
 
       <form action={formAction}>
-        {state?.error && <p className={formStyles.error}>{state.error}</p>}
+        {state?.error && <p role="alert" id="invite-error" className={formStyles.error}>{state.error}</p>}
         <div className={styles.inlineForm}>
-          <div className={styles.inputWrapper}>
-            <Mail size={16} className={styles.inputIcon} />
-            <input
-              name="email"
-              type="email"
-              placeholder="E-mail do convidado"
-              required
-              className={styles.inlineInputWithIcon}
-            />
-          </div>
-          <select name="role" defaultValue="BROKER" className={styles.inlineInput} required>
-            <option value="BROKER">Corretor</option>
-            <option value="MANAGER">Gerente</option>
-            <option value="ADMIN">Administrador</option>
-          </select>
+          <label className={styles.labeledField}>E-mail do convidado
+            <span className={styles.inputWrapper}>
+              <Mail size={16} className={styles.inputIcon} aria-hidden="true" />
+              <input name="email" type="email" placeholder="nome@exemplo.com" required
+                aria-describedby={state?.error ? "invite-error" : undefined} className={styles.inlineInputWithIcon} />
+            </span>
+          </label>
+          <label className={styles.labeledField}>Função na imobiliária
+            <select name="role" defaultValue="BROKER" className={styles.inlineInput} required>
+              <option value="BROKER">Corretor</option>
+              <option value="MANAGER">Gerente</option>
+              <option value="ADMIN">Administrador</option>
+            </select>
+          </label>
           <button type="submit" disabled={pending} className={styles.primaryInlineButton}>
             {pending ? "Enviando…" : "Enviar Convite"}
           </button>

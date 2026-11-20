@@ -1,6 +1,9 @@
 "use client";
 
-import { createContext, useCallback, useContext, useEffect, useState } from "react";
+import { createContext, useCallback, useContext, useEffect, useRef, useState } from "react";
+import { usePathname } from "next/navigation";
+import type { ConversationListItem } from "@/lib/chat-api";
+import { unreadMessages, type InboxFilter } from "@/lib/chat-inbox";
 import { io, type Socket } from "socket.io-client";
 import { getPublicApiUrl } from "@/lib/public-api";
 import type { SessionUser } from "@/lib/session";
@@ -19,12 +22,18 @@ interface ChatSocketContextValue {
   /** Se o socket está conectado agora — a tela de conversa mostra "Reconectando…" quando não. */
   isConnected: boolean;
   unreadCount: number;
+  inboxFilter: InboxFilter;
+  defaultInbox: InboxFilter;
+  conversations: ConversationListItem[] | null;
+  inboxError: boolean;
+  setWorkspaceActive: (active: boolean) => void;
+  setInboxFilter: (filter: InboxFilter) => void;
   refreshUnreadCount: () => void;
   isSidebarOpen: boolean;
   activeConversationId: string | null;
   token: string | null;
   user: SessionUser | null;
-  openSidebar: (conversationId?: string) => void;
+  openSidebar: (conversationId?: string, filter?: InboxFilter) => void;
   closeSidebar: () => void;
   selectConversation: (id: string | null) => void;
   notifications: AppNotification[];
@@ -38,6 +47,12 @@ const ChatSocketContext = createContext<ChatSocketContextValue>({
   socket: null,
   isConnected: false,
   unreadCount: 0,
+  inboxFilter: "all",
+  defaultInbox: "all",
+  conversations: null,
+  inboxError: false,
+  setWorkspaceActive: () => {},
+  setInboxFilter: () => {},
   refreshUnreadCount: () => {},
   isSidebarOpen: false,
   activeConversationId: null,
@@ -68,19 +83,29 @@ export function ChatSocketProvider({
 }) {
   const [socket, setSocket] = useState<Socket | null>(null);
   const [isConnected, setIsConnected] = useState(false);
-  const [unreadCount, setUnreadCount] = useState(0);
+  const [workspaceActive, setWorkspaceActive] = useState(false);
+  const pathname = usePathname();
+  const companyRoute = pathname === "/empresa" || pathname.startsWith("/empresa/") ||
+    (workspaceActive && (pathname === "/equipe" || pathname === "/imobiliaria" || pathname.startsWith("/imobiliaria/leads/") ||
+      pathname.startsWith("/anuncios") || pathname === "/configuracoes/imobiliaria"));
+  const defaultInbox: InboxFilter = companyRoute ? "organization" : "all";
+  const [inboxFilter, setInboxFilter] = useState<InboxFilter>("all");
+  const [inbox, setInbox] = useState<{ token: string; items: ConversationListItem[] } | null>(null);
+  const [inboxError, setInboxError] = useState(false);
+  const latestInboxRequest = useRef<symbol | null>(null);
+  const conversations = inbox && inbox.token === token ? inbox.items : null;
+  const unreadCount = unreadMessages(conversations ?? [], defaultInbox);
   const [isSidebarOpen, setIsSidebarOpen] = useState(false);
   const [activeConversationId, setActiveConversationId] = useState<string | null>(null);
   const [user, setUser] = useState<SessionUser | null>(null);
   const [notifications, setNotifications] = useState<AppNotification[]>([]);
   const [unreadNotificationCount, setUnreadNotificationCount] = useState(0);
 
-  const openSidebar = useCallback((conversationId?: string) => {
-    if (conversationId !== undefined) {
-      setActiveConversationId(conversationId);
-    }
+  const openSidebar = useCallback((conversationId?: string, filter: InboxFilter = defaultInbox) => {
+    setInboxFilter(filter);
+    setActiveConversationId(conversationId ?? null);
     setIsSidebarOpen(true);
-  }, []);
+  }, [defaultInbox]);
 
   const closeSidebar = useCallback(() => {
     setIsSidebarOpen(false);
@@ -91,18 +116,22 @@ export function ChatSocketProvider({
   }, []);
 
   const refreshUnreadCount = useCallback(() => {
-    if (!token) {
-      setUnreadCount(0);
-      return;
-    }
+    if (!token) return;
+    const current = Symbol();
+    latestInboxRequest.current = current;
     fetch(`${getPublicApiUrl()}/conversations`, {
       headers: { Authorization: `Bearer ${token}` },
     })
-      .then((res) => (res.ok ? res.json() : []))
-      .then((conversations: Array<{ _count?: { messages: number } }>) => {
-        setUnreadCount(conversations.reduce((sum, c) => sum + (c._count?.messages ?? 0), 0));
+      .then((res) => {
+        if (!res.ok) throw new Error("Falha ao carregar mensagens");
+        return res.json();
       })
-      .catch(() => {});
+      .then((items: ConversationListItem[]) => {
+        if (current !== latestInboxRequest.current) return;
+        setInbox({ token, items });
+        setInboxError(false);
+      })
+      .catch(() => { if (current === latestInboxRequest.current) setInboxError(true); });
   }, [token]);
 
   const refreshNotifications = useCallback(() => {
@@ -163,6 +192,8 @@ export function ChatSocketProvider({
 
     const newSocket = io(getPublicApiUrl(), { auth: { token } });
     newSocket.on("receiveMessage", () => refreshUnreadCount());
+    newSocket.on("messagesRead", refreshUnreadCount);
+    newSocket.on("conversationUpdated", refreshUnreadCount);
     // Reconexão (o Cloud Run derruba conexões longas): o que chegou enquanto estava desconectado
     // não é reenviado pelo servidor — o contador se recalcula aqui e cada tela de conversa aberta
     // ressincroniza as próprias mensagens no mesmo evento.
@@ -184,7 +215,11 @@ export function ChatSocketProvider({
       setSocket(null);
       setIsConnected(false);
       setUser(null);
-      setUnreadCount(0);
+      latestInboxRequest.current = null;
+      setInbox(null);
+      setInboxError(false);
+      setActiveConversationId(null);
+      setIsSidebarOpen(false);
       setNotifications([]);
       setUnreadNotificationCount(0);
     };
@@ -197,6 +232,12 @@ export function ChatSocketProvider({
         socket,
         isConnected,
         unreadCount,
+        defaultInbox,
+        inboxFilter,
+        setInboxFilter,
+        conversations,
+        inboxError,
+        setWorkspaceActive,
         refreshUnreadCount,
         isSidebarOpen,
         activeConversationId,

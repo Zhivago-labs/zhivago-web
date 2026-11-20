@@ -2,6 +2,15 @@ import assert from 'node:assert/strict';
 import test from 'node:test';
 import type { Listing } from '@zhivago/shared';
 import { citySummaries, locationSuggestions, eligiblePublicListings } from './home-data';
+import { catalogRegion } from '../../lib/catalog-region';
+
+test('legacy address text stays out of public suggestions and card labels', () => {
+  const listing = { id: 'legacy', status: 'APPROVED', location: 'Rua Um, 42 - Apto 10 - Bloco A' } as Listing;
+  assert.equal(catalogRegion(listing), '');
+  assert.deepEqual(locationSuggestions([listing]), []);
+  assert.deepEqual(citySummaries([listing]), []);
+  assert.equal(catalogRegion({ ...listing, cidade: 'Timóteo', uf: 'MG', bairro: 'Centro' }), 'Centro, Timóteo - MG');
+});
 
 test('public cities, suggestions and counts exclude explicit demos and unpublished listings', () => {
   const listing = (overrides: Partial<Listing>) => ({ id: 'real', status: 'APPROVED', isDemo: false, cidade: 'Cidade A', uf: 'MG', location: 'Cidade A, MG', ...overrides }) as Listing;

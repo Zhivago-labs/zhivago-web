@@ -23,7 +23,7 @@ interface ReviewItem {
 
 interface ListingReviewsProps {
   listingId: string;
-  category: string;
+  isSeasonal: boolean;
   user: SessionUser | null;
 }
 
@@ -61,7 +61,7 @@ function StarRating({ value, onChange }: { value: number; onChange?: (val: numbe
   );
 }
 
-export function ListingReviews({ listingId, category, user }: ListingReviewsProps) {
+export function ListingReviews({ listingId, isSeasonal, user }: ListingReviewsProps) {
   const { token } = useChatSocket();
   const [reviews, setReviews] = useState<ReviewItem[]>([]);
   const [loading, setLoading] = useState(true);
@@ -88,7 +88,7 @@ export function ListingReviews({ listingId, category, user }: ListingReviewsProp
   }, [fetchReviews]);
 
   useEffect(() => {
-    if (!token || !user || category !== "aluguel") return;
+    if (!token || !user || !isSeasonal) return;
 
     fetch(`${getPublicApiUrl()}/listings/${listingId}/reviews/eligibility`, {
       headers: { Authorization: `Bearer ${token}` },
@@ -96,7 +96,7 @@ export function ListingReviews({ listingId, category, user }: ListingReviewsProp
       .then((res) => (res.ok ? res.json() : null))
       .then((data: { canReview: boolean } | null) => setCanReview(Boolean(data?.canReview)))
       .catch(() => setCanReview(false));
-  }, [token, user, category, listingId]);
+  }, [token, user, isSeasonal, listingId]);
 
   const averageRating = useMemo(() => {
     if (reviews.length === 0) return 0;
@@ -144,7 +144,7 @@ export function ListingReviews({ listingId, category, user }: ListingReviewsProp
     }
   };
 
-  if (category !== "aluguel" && reviews.length === 0) {
+  if (!isSeasonal && reviews.length === 0) {
     return null;
   }
 
@@ -153,7 +153,7 @@ export function ListingReviews({ listingId, category, user }: ListingReviewsProp
       <hr className={styles.divider} />
 
       <div className={styles.header}>
-        <h2 className={styles.title}>Avaliações dos hóspedes</h2>
+        <h2 className={styles.title}>{isSeasonal ? "Avaliações dos hóspedes" : "Avaliações de hospedagens anteriores"}</h2>
         {reviews.length > 0 && (
           <div className={styles.scoreBadge}>
             <Star size={18} className={styles.starFilled} />
@@ -201,7 +201,7 @@ export function ListingReviews({ listingId, category, user }: ListingReviewsProp
       )}
 
       {/* Formulário de avaliação: só pra quem tem estadia finalizada ainda não avaliada */}
-      {category === "aluguel" && canReview && (
+      {isSeasonal && canReview && (
         <div className={styles.formCard}>
           <h3 className={styles.formTitle}>Avaliar sua estadia</h3>
           <p className={styles.formSubtext}>

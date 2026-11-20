@@ -41,6 +41,7 @@ import { ListingTabs, type ListingTab } from "@/components/listing/ListingTabs";
 import { ListingAbout, ListingDifferentials } from "@/components/listing/ListingOverview";
 import { FavoriteButton } from "@/components/favorites/FavoriteButton";
 import { ListingReviews } from "@/components/listing/ListingReviews";
+import { catalogReturn, listingHref } from "@/lib/catalog-navigation";
 import { HouseRules } from "@/components/listing/HouseRules";
 import { RecordRecentView } from "@/components/listing/RecordRecentView";
 import { MapEmbed } from "@/components/listing/MapEmbed";
@@ -250,8 +251,10 @@ function memberSince(iso: string | undefined): string | null {
   return Number.isNaN(date.getTime()) ? null : date.toLocaleDateString("pt-BR", { month: "long", year: "numeric", timeZone: "UTC" });
 }
 
-export default async function ListingPage({ params }: Params) {
+export default async function ListingPage({ params, searchParams }: Params & { searchParams: Promise<{ retorno?: string | string[] }> }) {
   const { id } = await params;
+  const { retorno } = await searchParams;
+  const returnTo = catalogReturn(retorno);
   const listing = await getListing(id);
 
   if (!listing) notFound();
@@ -300,6 +303,7 @@ export default async function ListingPage({ params }: Params) {
   // Vendido/alugado: some das listas públicas, mas o link direto ainda abre com o selo.
   const closedLabel = listing.status === "SOLD" ? "Vendido" : listing.status === "RENTED" ? "Alugado" : null;
   const isDaily = listing.operationType === "DAILY_RENT";
+  const bookingTerms = { id: listing.id, price: listing.price, minimumNights: listing.minimumNights, cleaningFee: listing.cleaningFee };
 
   const place = listing.cidade ? [listing.cidade, listing.uf].filter(Boolean).join(", ") : listing.location;
   const area = listing.privateArea ?? listing.totalArea;
@@ -333,7 +337,7 @@ export default async function ListingPage({ params }: Params) {
       Imóvel {closedLabel.toLowerCase()}
     </span>
   ) : isDaily ? (
-    listing.status === "APPROVED" && <BookingRequestForm listingId={listing.id} />
+    listing.status === "APPROVED" && <BookingRequestForm terms={bookingTerms} />
   ) : (
     <div className={styles.chatCta}>
       <StartChatButton listingId={listing.id} label="Entrar em contato" />
@@ -539,7 +543,7 @@ export default async function ListingPage({ params }: Params) {
 
       <div className={styles.layout}>
         <div className={styles.content}>
-          <Link href="/imoveis" className={styles.backLink}>
+          <Link href={returnTo} className={styles.backLink}>
             <ArrowLeft size={16} />
             Voltar para a busca
           </Link>
@@ -570,7 +574,7 @@ export default async function ListingPage({ params }: Params) {
           </section>
 
           {/* Avaliações e regras da casa: conceitos de aluguel/hospedagem */}
-          <ListingReviews listingId={id} category={listing.category} user={user} />
+          <ListingReviews key={id} listingId={id} isSeasonal={isDaily} user={user} />
           {isDaily && <HouseRules listing={listing} />}
         </div>
 
@@ -641,7 +645,7 @@ export default async function ListingPage({ params }: Params) {
                 {similarListings.map((item) => {
                   const itemArea = item.privateArea ?? item.totalArea;
                   return (
-                    <Link key={item.id} href={`/imovel/${item.id}`} className={styles.similarCard}>
+                    <Link key={item.id} href={listingHref(item.id, retorno ? returnTo : undefined)} className={styles.similarCard}>
                       {/* eslint-disable-next-line @next/next/no-img-element */}
                       <img src={item.images[0]?.url} alt={item.name} className={styles.similarImg} loading="lazy" />
                       <span className={styles.similarPrice}>{formatPrice(item)}</span>
@@ -689,7 +693,7 @@ export default async function ListingPage({ params }: Params) {
           ) : isOwner ? null : closedLabel ? (
             <span className={styles.disabledButton}>Imóvel {closedLabel.toLowerCase()}</span>
           ) : isDaily ? (
-            listing.status === "APPROVED" && <MobileRentTrigger listingId={listing.id} />
+            listing.status === "APPROVED" && <MobileRentTrigger terms={bookingTerms} />
           ) : (
             <StartChatButton listingId={listing.id} label="Contato" />
           )}

@@ -6,6 +6,8 @@ import { useChatSocket } from "@/components/chat/ChatSocketProvider";
 import { RentalBookingCalendar } from "./RentalBookingCalendar";
 import { getPublicApiUrl } from "@/lib/public-api";
 import { useRouter } from "next/navigation";
+import type { Listing } from "@zhivago/shared";
+import { stayQuote } from "@/lib/stay-period";
 import styles from "./BookingRequestForm.module.css";
 
 function formatDateBR(dateStr: string): string {
@@ -13,15 +15,23 @@ function formatDateBR(dateStr: string): string {
   return `${d}/${m}/${y}`;
 }
 
-export function BookingRequestForm({ listingId }: { listingId: string }) {
+export type BookingTerms = Pick<Listing, "id" | "price" | "cleaningFee" | "minimumNights">;
+const currency = new Intl.NumberFormat("pt-BR", { style: "currency", currency: "BRL" });
+
+export function BookingRequestForm({ terms, onChatOpened }: { terms: BookingTerms; onChatOpened?: () => void }) {
+  const { id: listingId, price } = terms;
+  const cleaningFee = terms.cleaningFee ?? 0;
+  const minimum = Math.max(1, terms.minimumNights ?? 1);
   const router = useRouter();
   const { token, openSidebar } = useChatSocket();
   const [startDate, setStartDate] = useState<string | null>(null);
   const [endDate, setEndDate] = useState<string | null>(null);
   const [pending, setPending] = useState(false);
   const [error, setError] = useState<string | null>(null);
+  const [submittedChat, setSubmittedChat] = useState<string | null>(null);
 
-  const isPeriodValid = Boolean(startDate && (endDate || startDate));
+  const quote = stayQuote(startDate, endDate, price, cleaningFee);
+  const isPeriodValid = quote !== null && quote.nights >= minimum;
 
   const handleSelectPeriod = (start: string | null, end: string | null) => {
     setStartDate(start);
@@ -31,16 +41,11 @@ export function BookingRequestForm({ listingId }: { listingId: string }) {
 
   const handleSubmit = async (e: React.FormEvent) => {
     e.preventDefault();
+    if (!startDate || !endDate || !quote || !isPeriodValid || pending || submittedChat) return;
     if (!token) {
       router.push(`/login?next=/imovel/${listingId}`);
       return;
     }
-    if (!startDate) {
-      setError("Selecione a data no calendário.");
-      return;
-    }
-
-    const effectiveEnd = endDate || startDate;
 
     setPending(true);
     setError(null);
@@ -51,7 +56,8 @@ export function BookingRequestForm({ listingId }: { listingId: string }) {
         headers: { "Content-Type": "application/json", Authorization: `Bearer ${token}` },
         body: JSON.stringify({
           startDate: new Date(startDate).toISOString(),
-          endDate: new Date(effectiveEnd).toISOString(),
+          endDate: new Date(endDate).toISOString(),
+          estimatedTotal: quote.total,
         }),
       });
 
@@ -63,7 +69,9 @@ export function BookingRequestForm({ listingId }: { listingId: string }) {
       }
 
       if (data?.conversationId) {
+        setSubmittedChat(data.conversationId);
         openSidebar(data.conversationId);
+        onChatOpened?.();
       }
     } catch {
       setError("Não foi possível conectar ao servidor. Tente novamente.");
@@ -72,11 +80,18 @@ export function BookingRequestForm({ listingId }: { listingId: string }) {
     }
   };
 
+  if (submittedChat) return (
+    <div className={styles.form}>
+      <p role="status">Solicitação enviada. Aguardando confirmação do anunciante.</p>
+      <button type="button" className={styles.button} onClick={() => openSidebar(submittedChat)}>Abrir conversa</button>
+    </div>
+  );
+
   return (
     <form onSubmit={handleSubmit} className={styles.form}>
       <p className={styles.title}>
         <CalendarRange size={16} />
-        Calendário & Reserva
+        Solicitar estadia
       </p>
 
       {/* Calendário com Dias Ocupados */}
@@ -87,15 +102,18 @@ export function BookingRequestForm({ listingId }: { listingId: string }) {
         onSelectPeriod={handleSelectPeriod}
       />
 
-      {startDate && (
-        <div className={styles.selectedPeriodBox}>
-          <span className={styles.periodLabel}>Período selecionado:</span>
-          <span className={styles.periodDates}>
-            {formatDateBR(startDate)}
-            {endDate && endDate !== startDate ? ` até ${formatDateBR(endDate)}` : " (1 dia)"}
-          </span>
-        </div>
-      )}
+      <div className={styles.selectedPeriodBox} aria-live="polite">
+        <span>Estadia mínima de {minimum} {minimum === 1 ? "noite" : "noites"}</span>
+        <span>Entrada · {startDate ? formatDateBR(startDate) : "Selecione a entrada"}</span>
+        <span>Saída · {endDate ? formatDateBR(endDate) : "Selecione a saída"}</span>
+        {quote && <>
+          <span>{quote.nights} {quote.nights === 1 ? "noite" : "noites"} × {currency.format(price)}</span>
+          <span>Taxa de limpeza · {currency.format(cleaningFee)}</span>
+          <strong>Total estimado · {currency.format(quote.total)}</strong>
+          {!isPeriodValid && <span>Escolha um período que atenda à estadia mínima.</span>}
+        </>}
+      </div>
+      <small>O anunciante precisa confirmar a solicitação.</small>
 
       {error && <p className={styles.error}>{error}</p>}
 
@@ -108,14 +126,14 @@ export function BookingRequestForm({ listingId }: { listingId: string }) {
         {!isPeriodValid ? (
           <>
             <Lock size={16} />
-            Selecione as datas para liberar o Chat
+            Selecione um período válido
           </>
         ) : pending ? (
           "Enviando solicitação…"
         ) : (
           <>
             <MessageCircle size={18} />
-            Reservar & Abrir Chat
+            Solicitar reserva e abrir chat
           </>
         )}
       </button>

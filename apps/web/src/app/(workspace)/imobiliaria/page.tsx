@@ -253,6 +253,7 @@ async function PipelineView({
 
 async function MetricsView({ token }: { token: string }) {
   const metrics = await getOrganizationMetrics(token);
+  const formerBrokers = metrics.formerBrokers ?? [];
   const maxFunnel = Math.max(1, ...metrics.funnelCounts.map((f) => f.count));
 
   return (
@@ -267,11 +268,11 @@ async function MetricsView({ token }: { token: string }) {
       ]} />
 
       <div className={styles.chartsGrid}>
-        <LineChart title="Leads por mês" data={metrics.leadsPerMonth} color="#ff385c" format="number" />
+        <LineChart title="Novos leads · últimos 6 meses" data={metrics.leadsPerMonth} color="#ff385c" format="number" />
       </div>
 
       <section className={styles.sectionCard}>
-        <h2 className={styles.sectionTitle}>Funil por etapa</h2>
+        <h2 className={styles.sectionTitle}>Funil atual · todas as oportunidades da imobiliária</h2>
         <div className={styles.funnelRow}>
           {COLUMNS.map((column) => {
             const count = metrics.funnelCounts.find((f) => f.status === column.status)?.count ?? 0;
@@ -287,6 +288,8 @@ async function MetricsView({ token }: { token: string }) {
       </section>
 
       <div className={styles.brokerTableWrap}>
+        <h2 className={styles.sectionTitle}>Equipe ativa</h2>
+        <p>Atribuídos e ganhos consideram a carteira atual de cada responsável. As médias de resposta e o SLA consideram os primeiros contatos registrados em todo o histórico.</p>
         <table className={styles.brokerTable}>
           <thead>
             <tr>
@@ -308,6 +311,17 @@ async function MetricsView({ token }: { token: string }) {
             ))}
           </tbody>
         </table>
+        {formerBrokers.length > 0 && (
+          <details>
+            <summary>Ex-membros com atribuições · todo o histórico ({formerBrokers.length})</summary>
+            <table className={styles.brokerTable}>
+              <thead><tr><th>Ex-membro</th><th>Atribuições recebidas</th><th>Tempo médio de resposta</th></tr></thead>
+              <tbody>{formerBrokers.map((broker) => (
+                <tr key={broker.memberId}><td>{broker.name}</td><td>{broker.assignmentCount}</td><td>{formatHours(broker.avgResponseHours)}</td></tr>
+              ))}</tbody>
+            </table>
+          </details>
+        )}
       </div>
     </>
   );

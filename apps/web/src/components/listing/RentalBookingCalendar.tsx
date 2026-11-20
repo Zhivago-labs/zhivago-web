@@ -4,12 +4,8 @@ import { useEffect, useState, useMemo } from "react";
 import { ChevronLeft, ChevronRight, Lock } from "lucide-react";
 import { getPublicApiUrl } from "@/lib/public-api";
 import { InlineLoading } from "@/components/feedback/InlineLoading";
+import { stayOverlaps, type BookedRange } from "@/lib/stay-period";
 import styles from "./RentalBookingCalendar.module.css";
-
-interface BookedRange {
-  startDate: string;
-  endDate: string;
-}
 
 interface RentalBookingCalendarProps {
   listingId: string;
@@ -48,7 +44,9 @@ export function RentalBookingCalendar({
   endDate,
   onSelectPeriod,
 }: RentalBookingCalendarProps) {
-  const [bookedDatesSet, setBookedDatesSet] = useState<Set<string>>(new Set());
+  const [ranges, setRanges] = useState<BookedRange[]>([]);
+  const [loadError, setLoadError] = useState(false);
+  const [attempt, setAttempt] = useState(0);
   const [loading, setLoading] = useState(true);
   const [currentMonthDate, setCurrentMonthDate] = useState(() => new Date());
   const [warning, setWarning] = useState<string | null>(null);
@@ -58,32 +56,27 @@ export function RentalBookingCalendar({
     let ignore = false;
 
     fetch(`${getPublicApiUrl()}/listings/${listingId}/bookings`)
-      .then((res) => (res.ok ? res.json() : []))
+      .then((res) => {
+        if (!res.ok) throw new Error("Falha ao carregar disponibilidade");
+        return res.json();
+      })
       .then((data: BookedRange[]) => {
         if (ignore) return;
-        const set = new Set<string>();
-        data.forEach((b) => {
-          const start = new Date(b.startDate);
-          const end = new Date(b.endDate);
-          const cur = new Date(start);
-          while (cur <= end) {
-            set.add(toDateString(cur));
-            cur.setDate(cur.getDate() + 1);
-          }
-        });
-        setBookedDatesSet(set);
+        setRanges(data);
         setLoading(false);
       })
       .catch(() => {
-        if (!ignore) setLoading(false);
+        if (!ignore) { setLoadError(true); setLoading(false); }
       });
 
     return () => {
       ignore = true;
     };
-  }, [listingId]);
+  }, [listingId, attempt]);
 
-  const todayStr = useMemo(() => toDateString(new Date()), []);
+  const todayStr = new Intl.DateTimeFormat("en-CA", {
+    timeZone: "America/Sao_Paulo", year: "numeric", month: "2-digit", day: "2-digit",
+  }).format(new Date());
 
   const daysInMonth = useMemo(() => {
     const year = currentMonthDate.getFullYear();
@@ -126,38 +119,13 @@ export function RentalBookingCalendar({
   };
 
   const handleDayClick = (dateStr: string) => {
-    if (bookedDatesSet.has(dateStr)) return;
-    if (dateStr < todayStr) return;
-
     setWarning(null);
-
-    if (!startDate || (startDate && endDate)) {
+    if (!startDate || endDate || dateStr <= startDate) {
       onSelectPeriod(dateStr, null);
+    } else if (stayOverlaps(ranges, startDate, dateStr)) {
+      setWarning("Há uma noite reservada nesse intervalo. Escolha outra data de saída.");
     } else {
-      if (dateStr < startDate) {
-        onSelectPeriod(dateStr, null);
-      } else {
-        // Verifica se há dias ocupados no intervalo selecionado
-        const start = new Date(startDate);
-        const end = new Date(dateStr);
-        const cur = new Date(start);
-        let hasBlocked = false;
-
-        while (cur <= end) {
-          if (bookedDatesSet.has(toDateString(cur))) {
-            hasBlocked = true;
-            break;
-          }
-          cur.setDate(cur.getDate() + 1);
-        }
-
-        if (hasBlocked) {
-          setWarning("Existe um dia já reservado dentro do período selecionado.");
-          onSelectPeriod(dateStr, null);
-        } else {
-          onSelectPeriod(startDate, dateStr);
-        }
-      }
+      onSelectPeriod(startDate, dateStr);
     }
   };
 
@@ -187,20 +155,25 @@ export function RentalBookingCalendar({
 
       {loading ? (
         <InlineLoading>Carregando calendário…</InlineLoading>
+      ) : loadError ? (
+        <p role="alert">Disponibilidade indisponível. <button type="button" onClick={() => {
+          setLoadError(false); setLoading(true); setAttempt(value => value + 1);
+        }}>Tentar novamente</button></p>
       ) : (
         <div className={styles.daysGrid}>
           {daysInMonth.map(({ dateStr, dayNum, isCurrentMonth }) => {
-            const isBooked = bookedDatesSet.has(dateStr);
+            const isBooked = ranges.some(range => range.startDate.slice(0, 10) <= dateStr && range.endDate.slice(0, 10) > dateStr);
+            const checkoutOnly = Boolean(isBooked && startDate && !endDate && dateStr > startDate && !stayOverlaps(ranges, startDate, dateStr));
             const isPast = dateStr < todayStr;
             const isStart = startDate === dateStr;
             const isEnd = endDate === dateStr;
             const isInRange = Boolean(startDate && endDate && dateStr > startDate && dateStr < endDate);
-            const isDisabled = isBooked || isPast || !isCurrentMonth;
+            const isDisabled = (isBooked && !checkoutOnly) || isPast || !isCurrentMonth;
 
             let dayClass = styles.dayCell;
             if (!isCurrentMonth) dayClass += ` ${styles.otherMonth}`;
             if (isPast) dayClass += ` ${styles.pastDay}`;
-            if (isBooked) dayClass += ` ${styles.bookedDay}`;
+            if (isBooked && !checkoutOnly) dayClass += ` ${styles.bookedDay}`;
             if (isStart) dayClass += ` ${styles.startDay}`;
             if (isEnd) dayClass += ` ${styles.endDay}`;
             if (isInRange) dayClass += ` ${styles.inRangeDay}`;
@@ -212,10 +185,11 @@ export function RentalBookingCalendar({
                 className={dayClass}
                 disabled={isDisabled}
                 onClick={() => handleDayClick(dateStr)}
-                title={isBooked ? "Dia já reservado" : undefined}
+                aria-label={`${dayNum} de ${MONTH_NAMES[currentMonthDate.getMonth()]} de ${currentMonthDate.getFullYear()}${checkoutOnly ? ", disponível apenas para saída" : ""}`}
+                title={checkoutOnly ? "Disponível apenas para saída" : isBooked ? "Noite reservada" : undefined}
               >
                 <span>{dayNum}</span>
-                {isBooked && <Lock size={10} className={styles.lockIcon} />}
+                {isBooked && !checkoutOnly && <Lock size={10} className={styles.lockIcon} />}
               </button>
             );
           })}

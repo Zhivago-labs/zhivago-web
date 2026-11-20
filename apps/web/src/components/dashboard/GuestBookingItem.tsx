@@ -37,7 +37,7 @@ export interface GuestBookingData {
 }
 
 function formatDateBR(dateStr: string): string {
-  return new Date(dateStr).toLocaleDateString("pt-BR", { day: "2-digit", month: "2-digit", year: "numeric" });
+  return new Date(dateStr).toLocaleDateString("pt-BR", { day: "2-digit", month: "2-digit", year: "numeric", timeZone: "UTC" });
 }
 
 function calculateNights(startStr: string, endStr: string): number {

@@ -1,4 +1,5 @@
 "use client";
+import { listingHref, rememberCatalogCard } from "@/lib/catalog-navigation";
 
 import { useEffect, useRef, useState, useCallback } from "react";
 import { createPortal } from "react-dom";
@@ -34,6 +35,7 @@ interface PropertyPhotoViewerProps {
   location?: string;
   priceLabel?: string;
   listingId?: string;
+  returnTo?: string;
 }
 
 export function PropertyPhotoViewer({
@@ -45,6 +47,7 @@ export function PropertyPhotoViewer({
   location,
   priceLabel,
   listingId,
+  returnTo,
 }: PropertyPhotoViewerProps) {
   const [mounted, setMounted] = useState(false);
   const [headerHeight, setHeaderHeight] = useState(64);
@@ -419,7 +422,8 @@ export function PropertyPhotoViewer({
               {priceLabel && <span className={styles.priceHighlight}>{priceLabel}</span>}
 
               {listingId && (
-                <Link href={`/imovel/${listingId}`} className={styles.linkToDetails} onClick={onClose}>
+                <Link href={listingHref(listingId, returnTo)} className={styles.linkToDetails} onClick={onClose}
+                  onNavigate={returnTo ? () => rememberCatalogCard("imovel-" + listingId) : undefined}>
                   <span>Ver anúncio</span>
                   <ArrowUpRight size={15} />
                 </Link>

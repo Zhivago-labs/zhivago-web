@@ -1,6 +1,8 @@
 "use client";
 
 import { useEffect, useMemo, useRef, useState, useId } from "react";
+import { catalogRegion } from "@/lib/catalog-region";
+import { catalogFilters, listingHref, rememberCatalogCard } from "@/lib/catalog-navigation";
 import Link from "next/link";
 import {
   Search,
@@ -195,7 +197,7 @@ export function ListingsExplorer({
       const matchesQuery =
         !q ||
         item.name.toLowerCase().includes(q) ||
-        item.location.toLowerCase().includes(q) ||
+        catalogRegion(item).toLowerCase().includes(q) ||
         (item.cidade ?? "").toLowerCase().includes(q) ||
         (item.bairro ?? "").toLowerCase().includes(q);
 
@@ -316,21 +318,38 @@ export function ListingsExplorer({
     return () => window.removeEventListener("popstate", restore);
   }, []);
 
-  useEffect(() => {
-    if (!urlReady || loading || loadError || priceError) return;
-    const url = new URL(window.location.href);
-    const values: Record<string, string> = {
+  const values: Record<(typeof catalogFilters)[number], string> = {
       q: query.trim(), tipo: activeType ?? "", categoria: activeCategory === "todos" ? "" : activeCategory,
       precoMin: minPrice, precoMax: maxPrice, quartos: minBedrooms?.toString() ?? "",
       banheiros: minBathrooms?.toString() ?? "", vagas: minParking?.toString() ?? "",
       comodidades: selectedAmenities.join(","), anunciante: ownerFilter === "todos" ? "" : ownerFilter,
       ordem: sortOption === "relevance" ? "" : sortOption, pagina: page > 1 ? String(page) : "",
-    };
-    for (const [key, value] of Object.entries(values)) {
+  };
+  const searchSnapshot = new URLSearchParams(Object.entries(values).filter(([, value]) => value)).toString();
+  const catalogPath = "/imoveis" + (searchSnapshot ? "?" + searchSnapshot : "");
+  useEffect(() => {
+    if (!urlReady || loading || loadError || priceError) return;
+    const url = new URL(window.location.href);
+    const filters = new URLSearchParams(searchSnapshot);
+    for (const key of catalogFilters) {
+      const value = filters.get(key);
       if (value) url.searchParams.set(key, value); else url.searchParams.delete(key);
     }
     if (url.href !== window.location.href) window.history.replaceState(window.history.state, "", url);
-  }, [urlReady, loading, loadError, priceError, query, activeType, activeCategory, minPrice, maxPrice, minBedrooms, minBathrooms, minParking, selectedAmenities, ownerFilter, sortOption, page]);
+  }, [urlReady, loading, loadError, priceError, searchSnapshot]);
+
+  const restoredAnchor = useRef("");
+  useEffect(() => {
+    if (showcase || !urlReady || loading || loadError) return;
+    const anchor = window.location.hash.slice(1);
+    if (!/^(imovel|recente)-[\w-]+$/.test(anchor) || restoredAnchor.current === anchor) return;
+    const link = document.getElementById(anchor);
+    if (link) {
+      restoredAnchor.current = anchor;
+      link.focus({ preventScroll: true });
+      link.scrollIntoView({ block: "center" });
+    }
+  }, [showcase, urlReady, loading, loadError, searchSnapshot, recentlyViewedIds]);
 
   if (pageState.key === "restore") {
     setPageState({ key: filterKey, page: pageState.page });
@@ -353,8 +372,9 @@ export function ListingsExplorer({
     const q = query.toLowerCase().trim();
     const seen = new Map<string, number>();
     for (const item of listings) {
-      if (q && !item.location.toLowerCase().includes(q)) continue;
-      seen.set(item.location, (seen.get(item.location) ?? 0) + 1);
+      const region = catalogRegion(item);
+      if (!region || (q && !region.toLowerCase().includes(q))) continue;
+      seen.set(region, (seen.get(region) ?? 0) + 1);
     }
     return Array.from(seen.entries())
       .sort((a, b) => b[1] - a[1])
@@ -414,6 +434,8 @@ export function ListingsExplorer({
             onChange={(e) => setQuery(e.target.value)}
             onFocus={() => setSearchOpen(true)}
             onBlur={handleSearchBlur}
+            role="combobox"
+            aria-haspopup="dialog"
             aria-expanded={showSuggestions}
             aria-controls={showSuggestions ? suggestionsId : undefined}
             onKeyDown={(e) => {
@@ -436,7 +458,15 @@ export function ListingsExplorer({
           )}
 
           {showSuggestions && (
-            <div id={suggestionsId} className={styles.suggestionsPanel} role="group" aria-label="Sugestões de localização" onFocus={() => { if (blurTimeout.current) clearTimeout(blurTimeout.current); }} onBlur={(event) => { if (!event.currentTarget.contains(event.relatedTarget)) setSearchOpen(false); }} onKeyDown={(event) => { if (event.key === "Escape") setSearchOpen(false); }}>
+            <div id={suggestionsId} className={styles.suggestionsPanel} role="dialog" aria-label="Sugestões de localização"
+              onFocus={() => { if (blurTimeout.current) clearTimeout(blurTimeout.current); }}
+              onBlur={(event) => { if (!event.currentTarget.contains(event.relatedTarget)) setSearchOpen(false); }}
+              onKeyDown={(event) => {
+                if (event.key === "Escape") {
+                  event.currentTarget.parentElement?.querySelector<HTMLInputElement>('input[role="combobox"]')?.focus();
+                  setSearchOpen(false);
+                }
+              }}>
               {recentSearches.length > 0 && (
                 <div className={styles.suggestionGroup}>
                   <span className={styles.suggestionGroupLabel}>Buscas recentes</span>
@@ -801,7 +831,8 @@ export function ListingsExplorer({
         <>
           <div className={`${styles.grid} ${showcase ? styles.showcaseGrid : ""}`}>
             {pageListings.map((listing, index) => (
-              <ListingCard key={listing.id} listing={listing} explore={!showcase} compactLocation={!showcase} isAdmin={isAdmin} priority={page === 1 && index < 4} />
+              <ListingCard key={listing.id} listing={listing} explore={!showcase} isAdmin={isAdmin} priority={page === 1 && index < 4}
+                returnTo={showcase ? undefined : catalogPath + "#imovel-" + listing.id} />
             ))}
           </div>
           <Pagination
@@ -820,7 +851,9 @@ export function ListingsExplorer({
           <h2 className={styles.recentTitle}>Vistos recentemente</h2>
           <div className={styles.recentRail}>
             {recentlyViewedListings.map((listing) => (
-              <Link key={listing.id} href={`/imovel/${listing.id}`} className={styles.recentCard}>
+              <Link key={listing.id} id={"recente-" + listing.id}
+                href={listingHref(listing.id, showcase ? undefined : catalogPath + "#recente-" + listing.id)}
+                onNavigate={() => rememberCatalogCard("recente-" + listing.id)} className={styles.recentCard}>
                 {/* eslint-disable-next-line @next/next/no-img-element */}
                 <img
                   {...thumbnailImgProps(listing.images[0]?.url)}
@@ -830,7 +863,7 @@ export function ListingsExplorer({
                 />
                 <div className={styles.recentInfo}>
                   <span className={styles.recentName}>{listing.name}</span>
-                  <span className={styles.recentLocation}>{listing.location}</span>
+                  <span className={styles.recentLocation}>{catalogRegion(listing) || "Região não informada"}</span>
                 </div>
               </Link>
             ))}

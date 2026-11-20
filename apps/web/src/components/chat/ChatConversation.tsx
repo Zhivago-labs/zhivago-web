@@ -66,7 +66,7 @@ function formatPrice(value: number): string {
 }
 
 function formatDate(value: string): string {
-  return new Date(value).toLocaleDateString("pt-BR", { day: "2-digit", month: "short", year: "numeric" });
+  return new Date(value).toLocaleDateString("pt-BR", { day: "2-digit", month: "short", year: "numeric", timeZone: "UTC" });
 }
 
 function formatTime(value: string): string {

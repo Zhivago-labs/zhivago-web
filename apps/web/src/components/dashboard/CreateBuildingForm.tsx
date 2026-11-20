@@ -10,12 +10,16 @@ export function CreateBuildingForm() {
 
   return (
     <form action={formAction} className={styles.inlineForm}>
-      <input type="text" name="name" placeholder="Nome do empreendimento" required className={styles.inlineInputWithIcon} />
-      <input type="text" name="address" placeholder="Endereço (opcional)" className={styles.inlineInputWithIcon} />
+      <label className={styles.labeledField}>Nome do empreendimento
+        <input type="text" name="name" required className={styles.inlineInput} />
+      </label>
+      <label className={styles.labeledField}>Endereço (opcional)
+        <input type="text" name="address" className={styles.inlineInput} />
+      </label>
       <button type="submit" disabled={pending} className={styles.primaryInlineButton}>
         {pending ? "Criando…" : "+ Novo empreendimento"}
       </button>
-      {state && "error" in state && <p className={formStyles.error}>{state.error}</p>}
+      {state && "error" in state && <p role="alert" className={formStyles.error}>{state.error}</p>}
     </form>
   );
 }

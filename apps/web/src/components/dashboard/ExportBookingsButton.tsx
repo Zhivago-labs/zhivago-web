@@ -5,7 +5,7 @@ import type { ReceivedBooking } from "@/lib/listings-api";
 import styles from "./ExportBookingsButton.module.css";
 
 function formatDateBR(dateStr: string): string {
-  return new Date(dateStr).toLocaleDateString("pt-BR", { day: "2-digit", month: "2-digit", year: "numeric" });
+  return new Date(dateStr).toLocaleDateString("pt-BR", { day: "2-digit", month: "2-digit", year: "numeric", timeZone: "UTC" });
 }
 
 function translateStatus(status: string): string {

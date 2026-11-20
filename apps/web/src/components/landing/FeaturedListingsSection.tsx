@@ -39,7 +39,7 @@ export function FeaturedListingsSection({
         ) : (
           <div className={styles.grid}>
             {listings.map((listing) => (
-              <ListingCard key={listing.id} listing={listing} compactLocation />
+              <ListingCard key={listing.id} listing={listing} />
             ))}
           </div>
         )}

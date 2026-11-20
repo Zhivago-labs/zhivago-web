@@ -19,17 +19,10 @@ interface Place {
 }
 
 /**
- * Cidade/UF/bairro do anúncio. Usa os campos estruturados; anúncios antigos só têm o texto livre
- * no formato do cadastro ("Rua X, 53 - Bairro - Cidade, UF") — aí lê os dois últimos trechos.
+ * Somente campos estruturados podem alimentar sugestões públicas de localização.
  */
 function placeOf(listing: Listing): Place {
-  if (listing.cidade?.trim()) {
-    return { cidade: listing.cidade.trim(), uf: listing.uf?.trim(), bairro: listing.bairro?.trim() };
-  }
-  const segments = listing.location.split(" - ").map((part) => part.trim());
-  if (segments.length < 3) return {};
-  const [cidade, uf] = segments[segments.length - 1].split(",").map((part) => part.trim());
-  return { cidade: cidade || undefined, uf: uf || undefined, bairro: segments[segments.length - 2] || undefined };
+  return { cidade: listing.cidade?.trim(), uf: listing.uf?.trim(), bairro: listing.bairro?.trim() };
 }
 
 /** Cidades com anúncios publicados, contadas a partir do inventário real (sem números inventados). */

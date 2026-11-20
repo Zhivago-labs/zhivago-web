@@ -21,6 +21,7 @@ export interface ChatMessage {
 
 export interface ConversationListItem {
   id: string;
+  inboxScope?: "organization" | "personal" | "other";
   propertyId: string;
   isReported: boolean;
   isClosed: boolean;

@@ -5,6 +5,8 @@ import Link from "next/link";
 import { BedDouble, Droplet, Car, Maximize2, BadgeCheck, ChevronLeft, ChevronRight } from "lucide-react";
 import type { Listing } from "@zhivago/shared";
 import { formatPrice } from "@/lib/api";
+import { catalogRegion } from "@/lib/catalog-region";
+import { listingHref, rememberCatalogCard } from "@/lib/catalog-navigation";
 import { thumbnailImgProps, thumbnailUrl } from "@/lib/images";
 import { useSmoothImage } from "@/lib/useSmoothImage";
 import { ImageLoadingIndicator } from "@/components/listing/ImageLoadingIndicator";
@@ -25,34 +27,19 @@ const OPERATION_LABELS: Record<Listing["operationType"], string> = {
   DAILY_RENT: "Temporada",
 };
 
-/**
- * Bairro e cidade, sem rua/número. Usa a localização estruturada quando existe; anúncios antigos só
- * têm o texto livre "Rua X, 53 - Bairro - Cidade, UF" — aí descarta o 1º trecho (logradouro).
- */
-function shortLocation(listing: Listing): string {
-  const parts = [listing.bairro, listing.cidade && listing.uf ? `${listing.cidade} - ${listing.uf}` : listing.cidade]
-    .map((part) => part?.trim())
-    .filter(Boolean);
-  if (parts.length > 0) return parts.join(", ");
-
-  const segments = listing.location.split(" - ").map((part) => part.trim()).filter(Boolean);
-  return segments.length > 1 ? segments.slice(1).join(" - ") : listing.location;
-}
-
 export function ListingCard({
   listing,
   isAdmin = false,
-  compactLocation = false,
   priority = false,
   explore = false,
+  returnTo,
 }: {
   listing: Listing;
   isAdmin?: boolean;
-  // Home: mostra só bairro/cidade, sem endereço completo.
-  compactLocation?: boolean;
   // Primeiros cards da tela: foto baixa na hora, com prioridade, em vez de esperar o lazy loading.
   priority?: boolean;
   explore?: boolean;
+  returnTo?: string;
 }) {
   // Garantir fallback idêntico ao do mobile
   const bedrooms = listing.bedrooms || 0;
@@ -209,7 +196,8 @@ export function ListingCard({
           </div>
         </div>
 
-        <Link href={`/imovel/${listing.id}`} className={styles.info}>
+        <Link id={returnTo ? "imovel-" + listing.id : undefined} href={listingHref(listing.id, returnTo)} prefetch={returnTo ? false : undefined}
+          onNavigate={returnTo ? () => rememberCatalogCard("imovel-" + listing.id) : undefined} className={styles.info}>
           {explore && priceContent}
           <div className={styles.tagRow}>
             <span className={styles.typeTag}>{TYPE_LABELS[listing.type]}</span>
@@ -221,9 +209,9 @@ export function ListingCard({
               </span>
             )}
           </div>
-          {explore && <p className={styles.location}>{shortLocation(listing)}</p>}
+          {explore && <p className={styles.location}>{catalogRegion(listing) || "Região não informada"}</p>}
           <h3 className={styles.name}>{listing.name}</h3>
-          {!explore && <p className={styles.location}>{compactLocation ? shortLocation(listing) : listing.location}</p>}
+          {!explore && <p className={styles.location}>{catalogRegion(listing) || "Região não informada"}</p>}
           <div className={styles.amenities}>
             <span className={styles.amenityItem} title={`${bedrooms} quartos`}>
               <BedDouble size={15} />
@@ -254,6 +242,7 @@ export function ListingCard({
         location={listing.location}
         priceLabel={formatPrice(listing)}
         listingId={listing.id}
+        returnTo={returnTo}
       />
     </>
   );

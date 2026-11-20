@@ -11,7 +11,7 @@ import { Calendar, Clock, CheckCircle2, XCircle, User, Building2, Tag } from "lu
 import styles from "./ReceivedBookingItem.module.css";
 
 function formatDate(value: string): string {
-  return new Date(value).toLocaleDateString("pt-BR", { day: "2-digit", month: "short", year: "numeric" });
+  return new Date(value).toLocaleDateString("pt-BR", { day: "2-digit", month: "short", year: "numeric", timeZone: "UTC" });
 }
 
 function getDurationLabel(startStr: string, endStr: string): string {

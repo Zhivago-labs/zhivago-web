@@ -725,8 +725,8 @@ export async function createBookingAction(
   if (!startDate || !endDate) {
     return { error: "Selecione as datas de início e fim." };
   }
-  if (new Date(endDate) < new Date(startDate)) {
-    return { error: "A data final não pode ser antes da data inicial." };
+  if (endDate <= startDate) {
+    return { error: "Selecione a saída depois da entrada." };
   }
 
   let conversationId: string | undefined;

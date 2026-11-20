@@ -3,7 +3,8 @@
 // fica em localStorage, não requer nenhuma tabela nova no banco.
 
 const RECENTLY_VIEWED_KEY = "zhivago_recently_viewed";
-const RECENT_SEARCHES_KEY = "zhivago_recent_searches";
+// The previous suggestions could store a full listing address.
+const RECENT_SEARCHES_KEY = "zhivago_recent_searches_v2";
 const MAX_RECENTLY_VIEWED = 8;
 const MAX_RECENT_SEARCHES = 5;
 

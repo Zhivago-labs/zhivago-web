@@ -10,7 +10,8 @@ const HIDDEN_ROUTES = ["/", "/para-imobiliarias", "/login", "/cadastro", "/esque
 
 export function FloatingChatButton() {
   const pathname = usePathname();
-  const { openSidebar, unreadCount, isSidebarOpen } = useChatSocket();
+  const { openSidebar, unreadCount, isSidebarOpen, defaultInbox } = useChatSocket();
+  const label = defaultInbox === "organization" ? "Mensagens da imobiliária" : "Mensagens da conta";
   const [photoViewerOpen, setPhotoViewerOpen] = useState(false);
 
   useEffect(() => {
@@ -37,8 +38,8 @@ export function FloatingChatButton() {
       type="button"
       className={styles.fabButton}
       onClick={() => openSidebar()}
-      title="Abrir mensagens (Chat Zhivago)"
-      aria-label="Abrir Mensagens"
+      title={label}
+      aria-label={`${label}, ${unreadCount} não lidas`}
     >
       <div className={styles.iconWrap}>
         <MessageCircle size={20} />
@@ -48,7 +49,7 @@ export function FloatingChatButton() {
           </span>
         )}
       </div>
-      <span className={styles.label}>Mensagens</span>
+      <span className={styles.label}>{label}</span>
     </button>
   );
 }

@@ -22,7 +22,8 @@ export function ImportListingsForm() {
           </a>{" "}
           e preencha uma linha por anúncio. Cada anúncio nasce como <strong>rascunho</strong> — revise e publique
           depois, um a um ou pelo botão “Publicar” de cada card. A coluna <code>imagens</code> deve trazer uma ou
-          mais URLs já hospedadas (separadas por <code>|</code>), já que não há upload de arquivo aqui.
+          mais URLs já hospedadas (separadas por <code>|</code>). A coluna <code>suites</code> é opcional.
+          Inclua as suítes no total de quartos e seus banheiros no total de banheiros.
         </p>
 
         <label className={formStyles.label} htmlFor="file">

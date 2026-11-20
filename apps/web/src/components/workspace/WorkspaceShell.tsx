@@ -7,9 +7,15 @@ import { HomeSimple, Group, ViewColumns3, Building, ChatBubble, Calendar, Settin
 import type { MyOrganization } from "@/lib/organizations-api";
 import type { SessionUser } from "@/lib/session";
 import { logoutAction } from "@/lib/actions/auth";
+import { useChatSocket } from "@/components/chat/ChatSocketProvider";
 import styles from "./Workspace.module.css";
 export function WorkspaceShell({ membership, user, hasSeason, children }: { membership: MyOrganization; user: SessionUser; hasSeason: boolean; children: React.ReactNode }) {
   const pathname = usePathname();
+  const { setWorkspaceActive } = useChatSocket();
+  useEffect(() => {
+    setWorkspaceActive(true);
+    return () => setWorkspaceActive(false);
+  }, [setWorkspaceActive]);
   const [open, setOpen] = useState(false);
   useEffect(() => {
     if (!open) return;
