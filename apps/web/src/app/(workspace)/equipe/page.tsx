@@ -93,7 +93,8 @@ export default async function EquipePage() {
 
   const { organization } = membership;
   const activeMembers = organization.members.filter((m) => m.status === "ACTIVE");
-  const receivingLeads = activeMembers.filter((m) => (m.role === "BROKER" || m.role === "MANAGER") && m.receiveLeads).length;
+  // Mesma regra de elegibilidade da API (OWNER, MANAGER e BROKER ativos que não pausaram).
+  const receivingLeads = activeMembers.filter((m) => ["OWNER", "MANAGER", "BROKER"].includes(m.role) && m.receiveLeads).length;
   const metrics = [
     { value: activeMembers.length, label: activeMembers.length === 1 ? "Membro ativo" : "Membros ativos", icon: Users, tone: "accent" },
     { value: receivingLeads, label: "Recebendo novos clientes", icon: UserCheck, tone: "green" },

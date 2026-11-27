@@ -2,7 +2,7 @@ import Link from "next/link";
 import { Sparks, Group, Clock, Building, InfoCircle, NavArrowRight, ArrowRight, Calendar, Eye, ChatBubble, GraphUp } from "iconoir-react";
 import { requireWorkspace, workspaceFetch } from "@/lib/workspace";
 import type { WorkspaceOverview } from "@/lib/workspace-types";
-import { avatarTone, initials } from "@/components/workspace/workspace-ui";
+import { avatarTone, initials, fmtAge, fmtDateTime } from "@/components/workspace/workspace-ui";
 import styles from "@/components/workspace/Workspace.module.css";
 export const metadata = { title: "Início da imobiliária" };
 
@@ -11,11 +11,27 @@ function DateBadge({ value, tone }: { value: string; tone: string }) {
   return <span className={styles.dateBadge} data-tone={tone}><b>{date.toLocaleDateString("pt-BR", { day: "2-digit" })}</b><small>{date.toLocaleDateString("pt-BR", { month: "short" }).replace(".", "")}</small></span>;
 }
 
-export default async function WorkspaceHome({ searchParams }: { searchParams: Promise<{ days?: string }> }) {
+type LeadCard = { id: string; user: { name: string }; listing: { name: string }; createdAt?: string };
+
+function Block({ title, tone, icon: Icon, count, items, empty, href, hrefLabel, meta }: {
+  title: string; tone: string; icon: typeof Clock; count: number; items: LeadCard[]; empty: string; href: string; hrefLabel: string; meta?: (item: LeadCard) => string;
+}) {
+  return (
+    <section className={styles.panel}>
+      <div className={styles.panelHead}><div><span className={styles.metricIcon} data-tone={tone}><Icon width={18} height={18} aria-hidden="true" /></span><h2>{title}</h2></div><span className={styles.count} data-tone={tone}>{count}</span></div>
+      {items.length ? <ul className={styles.rows}>{items.map((lead) => <li key={lead.id}><Link href={`/imobiliaria/leads/${lead.id}?back=/empresa`} className={styles.row}><span className={styles.avatar} data-tone={avatarTone(lead.user.name)}>{initials(lead.user.name)}</span><span className={styles.rowText}><strong>{lead.user.name}</strong><span>{lead.listing.name}{meta ? ` · ${meta(lead)}` : ""}</span></span><NavArrowRight width={18} height={18} aria-hidden="true" /></Link></li>)}</ul> : <p className={styles.empty}>{empty}</p>}
+      <div className={styles.panelFoot}><Link href={href} className={styles.linkAction}>{hrefLabel} <ArrowRight width={16} height={16} aria-hidden="true" /></Link></div>
+    </section>
+  );
+}
+
+export default async function WorkspaceHome({ searchParams }: { searchParams: Promise<{ days?: string; mine?: string }> }) {
   const { token } = await requireWorkspace();
   const params = await searchParams;
   const days = ["7", "30", "90"].includes(params.days || "") ? params.days! : "30";
-  const data = await workspaceFetch<WorkspaceOverview>(token, `/organizations/workspace?days=${days}`);
+  const mine = params.mine === "true";
+  const data = await workspaceFetch<WorkspaceOverview>(token, `/organizations/workspace?days=${days}${mine ? "&mine=true" : ""}`);
+  const blocks = data.blocks;
   const metrics = [
     { value: data.newLeads, label: "Novas oportunidades no período", icon: Sparks, tone: "accent" },
     { value: data.uniqueContacts, label: "Pessoas com novas oportunidades", icon: Group, tone: "blue" },
@@ -31,8 +47,30 @@ export default async function WorkspaceHome({ searchParams }: { searchParams: Pr
   return <main className={styles.page}>
     <div className={styles.header}>
       <div><h1>Visão geral</h1><p className={styles.muted}>{data.scope === "organization" ? "Operação de toda a imobiliária" : "Seus imóveis e oportunidades atribuídos"} · Dados reais de atendimento</p></div>
-      <form className={styles.filters} style={{ margin: 0 }}><label htmlFor="period">Período</label><select id="period" name="days" defaultValue={days}><option value="7">Últimos 7 dias</option><option value="30">Últimos 30 dias</option><option value="90">Últimos 90 dias</option></select><button>Aplicar</button></form>
+      <form className={styles.filters} style={{ margin: 0 }}>{mine && <input type="hidden" name="mine" value="true" />}<label htmlFor="period">Período</label><select id="period" name="days" defaultValue={days}><option value="7">Últimos 7 dias</option><option value="30">Últimos 30 dias</option><option value="90">Últimos 90 dias</option></select><button>Aplicar</button></form>
     </div>
+
+    {data.canSwitchScope && (
+      <nav className={styles.tabs} aria-label="Escopo">
+        <Link href={`/empresa?days=${days}`} aria-current={!mine ? "page" : undefined}>Visão da equipe</Link>
+        <Link href={`/empresa?days=${days}&mine=true`} aria-current={mine ? "page" : undefined}>Minha carteira</Link>
+      </nav>
+    )}
+
+    {blocks && <div className={styles.sections}>
+      <Block title="Novos sem resposta" tone="accent" icon={Sparks} count={blocks.newNoResponse.count} items={blocks.newNoResponse.items} empty="Todos os novos já foram respondidos." href="/empresa/contatos?view=opportunities&stage=NEW&sort=waiting" hrefLabel="Ver novos por tempo de espera" meta={(l) => fmtAge(l.createdAt)} />
+      <Block title="SLA vencido" tone="red" icon={Clock} count={blocks.overdue.count} items={blocks.overdue.items} empty="Nenhuma resposta atrasada." href="/imobiliaria?view=pipeline&overdue=true" hrefLabel="Abrir no Kanban" meta={(l) => `entrada ${fmtAge(l.createdAt)}`} />
+      {data.scope === "organization" && <Block title="Sem responsável" tone="amber" icon={Group} count={blocks.unassigned.count} items={blocks.unassigned.items} empty="Fila vazia." href="/empresa/fila" hrefLabel="Abrir a fila" meta={(l) => `espera ${fmtAge(l.createdAt)}`} />}
+      <section className={styles.panel}>
+        <div className={styles.panelHead}><div><span className={styles.metricIcon} data-tone="violet"><Calendar width={18} height={18} aria-hidden="true" /></span><h2>Próximas tarefas</h2></div><span className={styles.count} data-tone="violet">{blocks.tasks.items.length}</span></div>
+        {blocks.tasks.items.length ? <ul className={styles.rows}>{blocks.tasks.items.map((task) => <li key={task.id}><Link href={`/imobiliaria/leads/${task.lead.id}?back=/empresa`} className={styles.row}><span className={styles.rowText}><strong>{task.title}</strong><span>{task.lead.user.name} · {task.lead.listing.name} · {task.dueAt ? fmtDateTime(task.dueAt) : "sem prazo"}</span></span><NavArrowRight width={18} height={18} aria-hidden="true" /></Link></li>)}</ul> : <p className={styles.empty}>Nenhuma tarefa pendente.</p>}
+        <div className={styles.panelFoot}><Link href="/empresa/contatos?view=opportunities&stage=ACTIVE&sort=nextAction" className={styles.linkAction}>Ordenar por próxima ação <ArrowRight width={16} height={16} aria-hidden="true" /></Link></div>
+      </section>
+      <section className={styles.panel}>
+        <div className={styles.panelHead}><div><span className={styles.metricIcon} data-tone="blue"><Calendar width={18} height={18} aria-hidden="true" /></span><h2>Visitas de hoje</h2></div><span className={styles.count} data-tone="blue">{blocks.visitsToday.count}</span></div>
+        {blocks.visitsToday.items.length ? <ul className={styles.rows}>{blocks.visitsToday.items.map((visit) => <li key={visit.id}><Link href={`/imobiliaria/leads/${visit.lead.id}?back=/empresa`} className={styles.row}><span className={styles.rowText}><strong>{visit.lead.user.name}</strong><span>{visit.lead.listing.name} · {new Date(visit.scheduledAt).toLocaleTimeString("pt-BR", { timeZone: "America/Sao_Paulo", hour: "2-digit", minute: "2-digit" })}</span></span><NavArrowRight width={18} height={18} aria-hidden="true" /></Link></li>)}</ul> : <p className={styles.empty}>Nenhuma visita hoje.</p>}
+      </section>
+    </div>}
 
     <div className={styles.metrics}>
       {metrics.map(({ value, label, icon: Icon, tone }) => <div className={styles.metric} data-tone={tone} key={label}><span className={styles.metricIcon}><Icon width={20} height={20} aria-hidden="true" /></span><div><strong>{value}</strong><span>{label}</span></div></div>)}

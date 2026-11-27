@@ -1,14 +1,14 @@
 import Link from "next/link";
 import type { Metadata } from "next";
-import { Sparks, Clock, WarningCircle, UserXmark, Search, ArrowRight, Building, User, Percentage, CheckCircle, XmarkCircle, Timer } from "iconoir-react";
+import { Sparks, Clock, WarningCircle, UserXmark, Search, ArrowRight, Building, User, Percentage, Timer } from "iconoir-react";
 import { requireAuth } from "@/lib/session";
 import { getMyOrganization, getOrganizationBuildings, getOrganizationListings, getMyAssignedListings } from "@/lib/organizations-api";
-import { getOrganizationLeads, getOrganizationMetrics } from "@/lib/leads-api";
+import { getOrganizationLeads, getOrganizationMetricsForPeriod, getLeadAssignees, SOURCE_LABELS } from "@/lib/leads-api";
 import { LeadStatusSelect } from "@/components/dashboard/LeadStatusSelect";
 import { SlaBadge } from "@/components/dashboard/SlaBadge";
 import { LineChart } from "@/components/dashboard/LineChart";
-import { avatarTone, initials, STAGE_TONES } from "@/components/workspace/workspace-ui";
-import type { Lead, LeadStatus } from "@zhivago/shared";
+import { avatarTone, initials, STAGE_TONES, fmtHours, pct } from "@/components/workspace/workspace-ui";
+import type { Lead, LeadStatus, MetricsCut } from "@zhivago/shared";
 import type { MyOrganization } from "@/lib/organizations-api";
 import styles from "./page.module.css";
 
@@ -32,15 +32,11 @@ const STATUS_LABELS: Record<LeadStatus, string> = Object.fromEntries(
   COLUMNS.map((c) => [c.status, c.label])
 ) as Record<LeadStatus, string>;
 
-function formatHours(hours: number | null): string {
-  if (hours === null) return "—";
-  if (hours < 1) return `${Math.round(hours * 60)} min`;
-  return `${hours.toFixed(1)} h`;
-}
+const formatHours = fmtHours;
 
 function formatNextAction(task: Lead["tasks"][number]): string {
   if (!task.dueAt) return task.title;
-  const due = new Date(task.dueAt).toLocaleDateString("pt-BR", { day: "2-digit", month: "2-digit" });
+  const due = new Date(task.dueAt).toLocaleDateString("pt-BR", { timeZone: "America/Sao_Paulo", day: "2-digit", month: "2-digit" });
   return `${task.title} · ${due}`;
 }
 
@@ -59,12 +55,17 @@ function StatTiles({ items, label }: { items: StatTile[]; label?: string }) {
 }
 
 type Props = {
-  searchParams: Promise<{ view?: string; brokerId?: string; buildingId?: string; listingId?: string; search?: string; status?: string; page?: string }>;
+  searchParams: Promise<{ view?: string; brokerId?: string; buildingId?: string; listingId?: string; search?: string; status?: string; page?: string; unassigned?: string; overdue?: string; source?: string; hideClosed?: string; days?: string }>;
 };
 
 export default async function ImobiliariaPipelinePage({ searchParams }: Props) {
   const params = await searchParams;
   const { view: viewParam, brokerId, buildingId, listingId } = params;
+  const unassigned = params.unassigned === "true" ? "true" : undefined;
+  const overdue = params.overdue === "true" ? "true" : undefined;
+  const source = params.source && params.source in SOURCE_LABELS ? params.source : undefined;
+  const hideClosed = params.hideClosed === "1" ? "1" : undefined;
+  const days = ["7", "30", "90", "180", "365"].includes(params.days ?? "") ? Number(params.days) : 30;
   const search = params.search?.trim();
   const status = COLUMNS.some((column) => column.status === params.status) ? params.status : undefined;
   const pageNumber = Number(params.page);
@@ -103,7 +104,7 @@ export default async function ImobiliariaPipelinePage({ searchParams }: Props) {
         )}
       </div>
       {view === "metricas" ? (
-        <MetricsView token={token} />
+        <MetricsView token={token} days={days} />
       ) : (
         <PipelineView
           token={token}
@@ -111,7 +112,7 @@ export default async function ImobiliariaPipelinePage({ searchParams }: Props) {
           canManage={canManage}
           membership={membership}
           page={page}
-          filters={{ brokerId, buildingId, listingId, search, status }}
+          filters={{ brokerId, buildingId, listingId, search, status, unassigned, overdue, source, hideClosed }}
         />
       )}
     </main>
@@ -131,18 +132,25 @@ async function PipelineView({
   canManage: boolean;
   membership: MyOrganization;
   page: number;
-  filters: { brokerId?: string; buildingId?: string; listingId?: string; search?: string; status?: string };
+  filters: { brokerId?: string; buildingId?: string; listingId?: string; search?: string; status?: string; unassigned?: string; overdue?: string; source?: string; hideClosed?: string };
 }) {
   // Paginação do resultado completo; os filtros são preservados entre páginas.
-  const [leadsResult, buildings, listings] = await Promise.all([
-    getOrganizationLeads(token, { ...filters, page, limit: 100 }),
+  const { hideClosed, ...apiFilters } = filters;
+  const [leadsResult, buildings, listings, assignees] = await Promise.all([
+    getOrganizationLeads(token, { ...apiFilters, ...(hideClosed && !filters.status ? { stage: "ACTIVE" } : {}), page, limit: 100 }),
     hasOrgWideView ? getOrganizationBuildings(token) : Promise.resolve([]),
     hasOrgWideView ? getOrganizationListings(token) : getMyAssignedListings(token),
+    hasOrgWideView ? getLeadAssignees(token) : Promise.resolve([]),
   ]);
   const leads = leadsResult.items;
-  const brokers = hasOrgWideView
-    ? membership.organization.members.filter((m) => m.status === "ACTIVE" && m.role !== "ASSISTANT")
-    : [];
+  void membership;
+  const brokers = assignees.map((a) => ({ id: a.memberId, name: a.name }));
+  const visibleColumns = hideClosed ? COLUMNS.filter((c) => c.status !== "WON" && c.status !== "LOST") : COLUMNS;
+  const toggleHref = (key: string, value: string | undefined) => {
+    const query = new URLSearchParams({ view: "pipeline" });
+    for (const [k, v] of Object.entries({ ...filters, [key]: value })) if (v) query.set(k, v);
+    return `/imobiliaria?${query}`;
+  };
 
   const totalPages = Math.max(1, Math.ceil(leadsResult.total / leadsResult.limit));
   const pageHref = (nextPage: number) => {
@@ -150,7 +158,7 @@ async function PipelineView({
     for (const [key, value] of Object.entries(filters)) if (value) query.set(key, value);
     return `/imobiliaria?${query}`;
   };
-  const hasFilters = Boolean(filters.brokerId || filters.buildingId || filters.listingId || filters.search || filters.status);
+  const hasFilters = Boolean(filters.brokerId || filters.buildingId || filters.listingId || filters.search || filters.status || filters.unassigned || filters.overdue || filters.source);
 
   return (
     <>
@@ -170,7 +178,7 @@ async function PipelineView({
         {hasOrgWideView && <>
           <select aria-label="Corretor responsável" name="brokerId" defaultValue={filters.brokerId ?? ""} className={styles.filterInput}>
             <option value="">Todos os corretores</option>
-            {brokers.map((b) => <option key={b.id} value={b.id}>{b.user?.name ?? "Membro"}</option>)}
+            {brokers.map((b) => <option key={b.id} value={b.id}>{b.name}</option>)}
           </select>
           <select aria-label="Empreendimento" name="buildingId" defaultValue={filters.buildingId ?? ""} className={styles.filterInput}>
             <option value="">Todos os empreendimentos</option>
@@ -182,12 +190,25 @@ async function PipelineView({
           <option value="">Todas as etapas</option>
           {COLUMNS.map((column) => <option key={column.status} value={column.status}>{column.label}</option>)}
         </select>
+        <select name="source" aria-label="Origem" defaultValue={filters.source ?? ""} className={styles.filterInput}>
+          <option value="">Todas as origens</option>
+          {Object.entries(SOURCE_LABELS).map(([k, v]) => <option key={k} value={k}>{v}</option>)}
+        </select>
+        {filters.unassigned && <input type="hidden" name="unassigned" value="true" />}
+        {filters.overdue && <input type="hidden" name="overdue" value="true" />}
+        {filters.hideClosed && <input type="hidden" name="hideClosed" value="1" />}
         <button type="submit" className={`${styles.filterButton} ${styles.filterButtonPrimary}`}>Filtrar</button>
         {hasFilters && <Link href="/imobiliaria?view=pipeline" className={styles.filterButton}>Limpar</Link>}
       </form>
 
+      <nav className={styles.viewTabs} aria-label="Atalhos de triagem" style={{ marginBottom: 12 }}>
+        {hasOrgWideView && <Link href={toggleHref("unassigned", filters.unassigned ? undefined : "true")} className={`${styles.viewTab} ${filters.unassigned ? styles.viewTabActive : ""}`} aria-pressed={!!filters.unassigned}>Sem responsável</Link>}
+        <Link href={toggleHref("overdue", filters.overdue ? undefined : "true")} className={`${styles.viewTab} ${filters.overdue ? styles.viewTabActive : ""}`} aria-pressed={!!filters.overdue}>SLA vencido</Link>
+        <Link href={toggleHref("hideClosed", filters.hideClosed ? undefined : "1")} className={`${styles.viewTab} ${filters.hideClosed ? styles.viewTabActive : ""}`} aria-pressed={!!filters.hideClosed}>{filters.hideClosed ? "Mostrar ganhos e perdidos" : "Ocultar ganhos e perdidos"}</Link>
+      </nav>
+
       <div className={styles.resultBar}>
-        <p>{leads.length} de {leadsResult.total} oportunidades · Totais por etapa em todos os resultados filtrados</p>
+        <p>{leads.length} de {leadsResult.total} oportunidades nesta página · Os totais de cada etapa consideram todos os resultados filtrados</p>
         {(totalPages > 1 || page > 1) && <nav aria-label="Paginação dos leads" className={styles.pagination}>
           {page > 1 && <Link href={pageHref(Math.min(page - 1, totalPages))}>← Anterior</Link>}
           <span>Página {page} de {totalPages}</span>
@@ -196,7 +217,7 @@ async function PipelineView({
       </div>
       {leadsResult.total === 0 && <p className={styles.emptyNote}>{leadsResult.allTotal === 0 ? "Nenhum lead recebido ainda." : "Nenhum resultado para os filtros selecionados."}</p>}
       <div className={styles.board} role="region" aria-label="Funil de oportunidades, role para ver todas as etapas" tabIndex={0}>
-        {COLUMNS.map((column) => {
+        {visibleColumns.map((column) => {
           const columnLeads = leads.filter((lead) => lead.status === column.status);
           return (
             <div key={column.status} className={styles.column} data-status={column.status} data-tone={STAGE_TONES[column.status]}>
@@ -204,10 +225,13 @@ async function PipelineView({
                 <span className={styles.columnTitle}><i aria-hidden="true" />{column.label}</span>
                 <span className={styles.columnCount}>{leadsResult.summary.byStatus[column.status] ?? 0}</span>
               </div>
+              {columnLeads.length > 0 && columnLeads.length < (leadsResult.summary.byStatus[column.status] ?? 0) && (
+                <p className={styles.columnEmpty}>Exibindo {columnLeads.length} de {leadsResult.summary.byStatus[column.status]} nesta etapa</p>
+              )}
 
               <div className={styles.columnBody}>
                 {columnLeads.length === 0 ? (
-                  <p className={styles.columnEmpty}>Nenhum lead aqui.</p>
+                  <p className={styles.columnEmpty}>{(leadsResult.summary.byStatus[column.status] ?? 0) > 0 ? `${leadsResult.summary.byStatus[column.status]} nesta etapa em outras páginas` : "Nenhum lead aqui."}</p>
                 ) : (
                   columnLeads.map((lead) => {
                     const currentAssignment = lead.assignments[0];
@@ -251,21 +275,97 @@ async function PipelineView({
   );
 }
 
-async function MetricsView({ token }: { token: string }) {
-  const metrics = await getOrganizationMetrics(token);
+function CutTable({ title, rows }: { title: string; rows: MetricsCut[] }) {
+  if (!rows.length) return null;
+  return (
+    <div className={styles.brokerTableWrap}>
+      <h3 className={styles.sectionTitle}>{title}</h3>
+      <table className={styles.brokerTable}>
+        <thead><tr><th>Recorte</th><th>Entradas</th><th>Ganhos</th><th>Perdidos</th><th>Ganho nos encerrados</th><th>Mediana da 1ª resposta</th></tr></thead>
+        <tbody>
+          {rows.map((row) => (
+            <tr key={row.key}>
+              <td>{row.label}</td>
+              <td>{row.entries}</td>
+              <td>{row.won}</td>
+              <td>{row.lost}</td>
+              <td>{pct(row.winRateClosed)}</td>
+              <td>{formatHours(row.medianResponseHours)}{row.respondedCount ? ` (${row.respondedCount})` : ""}</td>
+            </tr>
+          ))}
+        </tbody>
+      </table>
+    </div>
+  );
+}
+
+async function MetricsView({ token, days }: { token: string; days: number }) {
+  const metrics = await getOrganizationMetricsForPeriod(token, days);
   const formerBrokers = metrics.formerBrokers ?? [];
   const maxFunnel = Math.max(1, ...metrics.funnelCounts.map((f) => f.count));
+  const period = metrics.period;
+  const snapshot = metrics.snapshot;
+  const sla = metrics.slaHours ?? 4;
 
   return (
     <>
-      <StatTiles items={[
-        { label: "Leads", value: metrics.totalLeads, icon: Sparks, tone: "accent" },
-        { label: "Conversão", value: `${(metrics.conversionRate * 100).toFixed(1)}%`, icon: Percentage, tone: "violet" },
-        { label: "Tempo médio de resposta", value: formatHours(metrics.avgResponseHours), icon: Timer, tone: "blue" },
-        { label: "Dentro do SLA", value: metrics.slaCompliancePct === null ? "—" : `${metrics.slaCompliancePct.toFixed(0)}%`, icon: Clock, tone: "amber" },
-        { label: "Ganhos", value: metrics.wonCount, icon: CheckCircle, tone: "green" },
-        { label: "Perdidos", value: metrics.lostCount, icon: XmarkCircle, tone: "slate" },
-      ]} />
+      <section className={styles.sectionCard}>
+        <h2 className={styles.sectionTitle}>Carteira agora</h2>
+        <p>Fotografia do momento, independente do período.</p>
+        {snapshot && (
+          <StatTiles items={[
+            { label: "Em aberto", value: snapshot.open, icon: Sparks, tone: "accent" },
+            { label: "Sem responsável (fila)", value: snapshot.unassigned, icon: UserXmark, tone: "amber" },
+            { label: "Aguardando 1ª resposta", value: snapshot.awaitingResponse, icon: Clock, tone: "blue" },
+            { label: `Sem resposta há mais de ${sla} h`, value: snapshot.overdue, icon: WarningCircle, tone: "red" },
+          ]} />
+        )}
+      </section>
+
+      <form action="/imobiliaria" className={styles.filterBar}>
+        <input type="hidden" name="view" value="metricas" />
+        <label htmlFor="metrics-days">Período dos resultados</label>
+        <select id="metrics-days" name="days" defaultValue={String(days)} className={styles.filterInput}>
+          <option value="7">Últimos 7 dias</option>
+          <option value="30">Últimos 30 dias</option>
+          <option value="90">Últimos 90 dias</option>
+          <option value="180">Últimos 180 dias</option>
+          <option value="365">Últimos 12 meses</option>
+        </select>
+        <button type="submit" className={`${styles.filterButton} ${styles.filterButtonPrimary}`}>Aplicar</button>
+      </form>
+
+      {period && (
+        <>
+          <StatTiles items={[
+            { label: "Entradas no período", value: period.entries, icon: Sparks, tone: "accent" },
+            { label: `Ganho nos encerrados (${period.won} de ${period.won + period.lost})`, value: pct(period.winRateClosed), icon: Percentage, tone: "violet" },
+            { label: `Mediana da 1ª resposta (${period.response.responded} respondidas)`, value: formatHours(period.response.medianHours), icon: Timer, tone: "blue" },
+            { label: "Percentil 90 da 1ª resposta", value: formatHours(period.response.p90Hours), icon: Timer, tone: "blue" },
+            { label: `Respondidas em até ${sla} h (${period.response.onTime} de ${period.response.due})`, value: pct(period.response.onTimeRate), icon: Clock, tone: "amber" },
+            { label: `Mediana até atribuir (${period.timeToAssignment.assigned} atribuídas)`, value: formatHours(period.timeToAssignment.medianHours), icon: User, tone: "slate" },
+          ]} />
+          <p className={styles.emptyNote}>
+            Entradas = oportunidades criadas no período. Ganho nos encerrados = ganhos ÷ (ganhos + perdidos) encerrados no período.
+            O prazo de resposta conta a partir da atribuição; o denominador inclui só atribuições já respondidas ou com prazo vencido.
+          </p>
+
+          <section className={styles.sectionCard}>
+            <h2 className={styles.sectionTitle}>Motivos de perda no período</h2>
+            {period.lostReasons.length === 0 ? <p>Nenhuma perda registrada no período.</p> : (
+              <table className={styles.brokerTable}>
+                <thead><tr><th>Motivo</th><th>Oportunidades</th></tr></thead>
+                <tbody>{period.lostReasons.map((r) => <tr key={r.reason}><td>{r.label}</td><td>{r.count}</td></tr>)}</tbody>
+              </table>
+            )}
+          </section>
+
+          <CutTable title="Por origem" rows={period.bySource} />
+          <CutTable title="Por modalidade" rows={period.byOperationType} />
+          <CutTable title="Por responsável" rows={period.byResponsible} />
+          <CutTable title="Por empreendimento" rows={period.byBuilding} />
+        </>
+      )}
 
       <div className={styles.chartsGrid}>
         <LineChart title="Novos leads · últimos 6 meses" data={metrics.leadsPerMonth} color="#ff385c" format="number" />
@@ -285,28 +385,29 @@ async function MetricsView({ token }: { token: string }) {
             );
           })}
         </div>
+        <p>
+          Histórico completo: {metrics.totalLeads} oportunidades, {metrics.wonCount} ganhas, {metrics.lostCount} perdidas ·
+          ganhos ÷ total = {(metrics.conversionRate * 100).toFixed(1)}% (inclui as que ainda estão em aberto).
+        </p>
       </section>
 
       <div className={styles.brokerTableWrap}>
-        <h2 className={styles.sectionTitle}>Equipe ativa</h2>
-        <p>Atribuídos e ganhos consideram a carteira atual de cada responsável. As médias de resposta e o SLA consideram os primeiros contatos registrados em todo o histórico.</p>
+        <h2 className={styles.sectionTitle}>Equipe ativa · carteira atual</h2>
+        <p>Em aberto e aguardando resposta são a fotografia de agora. Ganhos consideram a atribuição atual. Tempos de resposta usam todo o histórico de atribuições.</p>
         <table className={styles.brokerTable}>
           <thead>
-            <tr>
-              <th>Corretor</th>
-              <th>Leads atribuídos</th>
-              <th>Ganhos</th>
-              <th>Tempo médio de resposta</th>
-            </tr>
+            <tr><th>Responsável</th><th>Em aberto</th><th>Aguardando resposta</th><th>Ganhos</th><th>Mediana da 1ª resposta</th><th>Recebendo</th></tr>
           </thead>
           <tbody>
-            {metrics.byBroker.length === 0 && <tr><td colSpan={4}>Ainda não há dados de corretores para exibir.</td></tr>}
+            {metrics.byBroker.length === 0 && <tr><td colSpan={6}>Ainda não há dados de corretores para exibir.</td></tr>}
             {metrics.byBroker.map((broker) => (
               <tr key={broker.memberId}>
                 <td><span className={styles.cardPerson}><span className={styles.cardAvatar} data-tone={avatarTone(broker.name)}>{initials(broker.name)}</span><strong>{broker.name}</strong></span></td>
-                <td>{broker.assignedCount}</td>
+                <td>{broker.openCount ?? broker.assignedCount}</td>
+                <td>{broker.awaitingResponse ?? "—"}</td>
                 <td><span className={styles.wonPill}>{broker.wonCount}</span></td>
-                <td>{formatHours(broker.avgResponseHours)}</td>
+                <td>{formatHours(broker.medianResponseHours ?? broker.avgResponseHours)}</td>
+                <td>{broker.receiveLeads === false ? "Pausado" : "Sim"}</td>
               </tr>
             ))}
           </tbody>

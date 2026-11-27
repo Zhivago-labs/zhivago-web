@@ -205,14 +205,16 @@ export interface LeadAssignment {
   assignedBy: string | null;
   assignedAt: string;
   firstContactAt: string | null;
+  firstContactChannel?: string | null;
   unassignedAt: string | null;
   reason: string | null;
+  source?: string | null;
   broker?: OrganizationMember;
 }
 
-// CRM B2B — Fase 4: SLA é só cálculo sob demanda (nunca persistido) a partir de assignedAt/
-// firstContactAt. UNASSIGNED = sem atribuição; ON_TIME cobre "recém atribuído" e "já contatado".
-export type SlaStatus = 'UNASSIGNED' | 'ON_TIME' | 'AT_RISK' | 'OVERDUE';
+// SLA é só cálculo sob demanda a partir de assignedAt/firstContactAt (1ª resposta EFETIVA: mensagem
+// humana ao cliente ou contato externo com sucesso — nota e mudança de etapa não contam).
+export type SlaStatus = 'UNASSIGNED' | 'PENDING' | 'AT_RISK' | 'OVERDUE' | 'RESPONDED_ON_TIME' | 'RESPONDED_LATE' | 'CLOSED';
 
 // Tarefa/próxima ação (seção 112/117 da spec) — puramente uma checklist com prazo, sem
 // lembrete/automação proativa.
@@ -220,11 +222,13 @@ export interface LeadTask {
   id: string;
   leadId: string;
   memberId: string;
+  assigneeId?: string | null;
   title: string;
   dueAt: string | null;
   completedAt: string | null;
   createdAt: string;
   member?: OrganizationMember;
+  assignee?: OrganizationMember | null;
 }
 
 export interface Lead {
@@ -236,8 +240,15 @@ export interface Lead {
   organizationId: string;
   createdAt: string;
   updatedAt: string;
+  lostReason?: string | null;
+  lostNote?: string | null;
+  closedAt?: string | null;
+  reopenedAt?: string | null;
+  queuedAt?: string | null;
+  queueReason?: string | null;
+  lastActivityAt?: string;
   user: OrganizationMemberUser;
-  listing: { id: string; name: string; images: { url: string }[] };
+  listing: { id: string; name: string; operationType?: string; images: { url: string }[] };
   // Só a atribuição aberta (unassignedAt null) — histórico completo fica no backend, não exposto aqui.
   assignments: LeadAssignment[];
   // Só a tarefa incompleta mais próxima do prazo ("próxima ação") — histórico completo só no detalhe.
@@ -248,7 +259,7 @@ export interface Lead {
 // `GET /leads` (org-wide) agora pagina e filtra no servidor (seção 118/119 da spec).
 export interface PaginatedLeads {
   allTotal: number;
-  summary: { active: number; overdue: number; unassigned: number; byStatus: Record<string, number> };
+  summary: { active: number; overdue: number; unassigned: number; byStatus: Record<string, number>; pageByStatus?: Record<string, number> };
   items: Lead[];
   total: number;
   page: number;
@@ -256,7 +267,7 @@ export interface PaginatedLeads {
 }
 
 // CRM B2B — Fase 3: log de contato (LeadInteraction) e agendamento estruturado (Visit).
-export type LeadInteractionType = 'PHONE_CALL' | 'WHATSAPP' | 'EMAIL' | 'NOTE' | 'VISIT' | 'STATUS_CHANGE';
+export type LeadInteractionType = 'PHONE_CALL' | 'WHATSAPP' | 'EMAIL' | 'NOTE' | 'VISIT' | 'STATUS_CHANGE' | 'REOPEN';
 export type VisitStatus = 'SCHEDULED' | 'CONFIRMED' | 'COMPLETED' | 'CANCELLED' | 'NO_SHOW';
 
 export interface LeadInteraction {
@@ -264,6 +275,7 @@ export interface LeadInteraction {
   leadId: string;
   memberId: string;
   type: LeadInteractionType;
+  outcome?: 'CONTACT' | 'ATTEMPT' | null;
   content: string | null;
   createdAt: string;
   member?: OrganizationMember;
@@ -282,11 +294,54 @@ export interface Visit {
 
 // Página de detalhe do lead (`GET /leads/:id`) — histórico completo, diferente da listagem (Kanban)
 // que só traz a atribuição aberta.
-export interface LeadDetail extends Omit<Lead, 'assignments' | 'tasks'> {
+export interface LeadTimelineEvent {
+  id: string;
+  kind: 'ENTRY' | 'ASSIGNMENT' | 'UNASSIGNMENT' | 'INTERACTION' | 'STATUS' | 'VISIT' | 'TASK' | 'TASK_DONE';
+  at: string;
+  actor: string | null;
+  title: string;
+  detail: string | null;
+}
+
+export interface LeadEntry {
+  id: string;
+  leadId: string;
+  source: string;
+  kind: 'ENTRY' | 'REENTRY' | 'INTENT';
+  previousStatus: string | null;
+  note: string | null;
+  createdAt: string;
+}
+
+export interface LeadDetail extends Omit<Lead, 'assignments' | 'tasks' | 'user' | 'listing'> {
+  user: OrganizationMemberUser & { phone?: string | null };
+  listing: { id: string; name: string; operationType: string; building: { id: string; name: string } | null; images: { url: string }[] };
   assignmentHistory: LeadAssignment[];
   interactions: LeadInteraction[];
   visits: Visit[];
   tasks: LeadTask[];
+  entries: LeadEntry[];
+  timeline: LeadTimelineEvent[];
+  bookings: { id: string; status: string; startDate: string; endDate: string }[];
+  negotiations: { id: string; status: string; operationType: string; agreedValue: number | null }[];
+  routing: { source: string | null; label: string; assignedAt: string | null };
+  lostReasonLabel: string | null;
+  closedByName: string | null;
+  conversation: { id: string; isClosed: boolean } | null;
+  hasConversation: boolean;
+  viewer: { memberId: string; role: string };
+}
+
+export interface LeadAssignee {
+  memberId: string;
+  userId: string;
+  name: string;
+  avatar: string | null;
+  role: string;
+  receiveLeads: boolean;
+  eligible: boolean;
+  ineligibleReason: string | null;
+  openLeads: number;
 }
 
 // Log de auditoria da organização (seção 125 da spec) — responsabilidade de empreendimento e
@@ -296,14 +351,15 @@ export type OrgAuditAction =
   | 'BUILDING_LEAD_OWNER_CHANGED'
   | 'BUILDING_BACKUP_CHANGED'
   | 'LISTING_ORG_APPROVED'
-  | 'LISTING_ORG_REJECTED';
+  | 'LISTING_ORG_REJECTED'
+  | 'MEMBER_REMOVED';
 
 export interface OrganizationAuditLogEntry {
   id: string;
   organizationId: string;
   actorMemberId: string;
   action: OrgAuditAction;
-  entityType: 'BUILDING' | 'LISTING';
+  entityType: 'BUILDING' | 'LISTING' | 'MEMBER';
   entityId: string;
   reason: string | null;
   metadata: Record<string, unknown> | null;
@@ -322,9 +378,24 @@ export interface PaginatedAuditLog {
 export interface OrganizationBrokerMetrics {
   memberId: string;
   name: string;
+  receiveLeads?: boolean;
   assignedCount: number;
+  openCount?: number;
+  awaitingResponse?: number;
   wonCount: number;
   avgResponseHours: number | null;
+  medianResponseHours?: number | null;
+}
+
+export interface MetricsCut {
+  key: string;
+  label: string;
+  entries: number;
+  won: number;
+  lost: number;
+  winRateClosed: number | null;
+  medianResponseHours: number | null;
+  respondedCount: number;
 }
 
 export interface OrganizationMetrics {
@@ -338,6 +409,23 @@ export interface OrganizationMetrics {
   leadsPerMonth: { label: string; value: number }[];
   byBroker: OrganizationBrokerMetrics[];
   formerBrokers: { memberId: string; name: string; assignmentCount: number; avgResponseHours: number | null }[];
+  slaHours?: number;
+  snapshot?: { open: number; unassigned: number; awaitingResponse: number; overdue: number; byStatus: Record<string, number> };
+  period?: {
+    days: number;
+    since: string;
+    entries: number;
+    won: number;
+    lost: number;
+    winRateClosed: number | null;
+    response: { assignments: number; responded: number; medianHours: number | null; p90Hours: number | null; onTime: number; due: number; onTimeRate: number | null };
+    timeToAssignment: { assigned: number; medianHours: number | null; p90Hours: number | null };
+    lostReasons: { reason: string; label: string; count: number }[];
+    bySource: MetricsCut[];
+    byOperationType: MetricsCut[];
+    byBuilding: MetricsCut[];
+    byResponsible: MetricsCut[];
+  };
 }
 
 export interface Listing {

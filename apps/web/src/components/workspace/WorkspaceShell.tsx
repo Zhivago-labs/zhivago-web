@@ -3,7 +3,7 @@ import Image from "next/image";
 import Link from "next/link";
 import { usePathname } from "next/navigation";
 import { useEffect, useState } from "react";
-import { HomeSimple, Group, ViewColumns3, Building, ChatBubble, Calendar, Settings, Plus, Menu, Xmark, ArrowLeft, User, LogOut } from "iconoir-react";
+import { HomeSimple, Group, ViewColumns3, Building, ChatBubble, Calendar, Settings, Plus, Menu, Xmark, ArrowLeft, User, LogOut, UserXmark } from "iconoir-react";
 import type { MyOrganization } from "@/lib/organizations-api";
 import type { SessionUser } from "@/lib/session";
 import { logoutAction } from "@/lib/actions/auth";
@@ -41,6 +41,7 @@ export function WorkspaceShell({ membership, user, hasSeason, children }: { memb
   const links = [
     { href: "/empresa", label: "Início", icon: HomeSimple },
     { href: "/empresa/contatos", label: "Contatos", icon: Group },
+    ...(["OWNER", "ADMIN", "MANAGER", "ASSISTANT"].includes(membership.role) ? [{ href: "/empresa/fila", label: "Sem responsável", icon: UserXmark }] : []),
     { href: "/imobiliaria", label: "Kanban", icon: ViewColumns3 },
     { href: "/empresa/imoveis", label: "Imóveis", icon: Building },
     { href: "/empresa/mensagens", label: "Mensagens", icon: ChatBubble },

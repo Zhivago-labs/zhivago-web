@@ -21,7 +21,7 @@ export const ROLE_LABELS: Record<string, string> = {
 };
 
 const STATUS_LABELS: Record<string, string> = { DRAFT: "Rascunho", PENDING: "Em análise", APPROVED: "Publicado", REJECTED: "Rejeitado", SOLD: "Vendido", RENTED: "Alugado" };
-const RECEIVES_LEADS_ROLES = ["BROKER", "MANAGER"];
+const RECEIVES_LEADS_ROLES = ["OWNER", "MANAGER", "BROKER"]; // mesma regra de elegibilidade da API
 
 function initials(name: string) {
   return name.trim().split(/\s+/).slice(0, 2).map((word) => word[0] ?? "").join("").toUpperCase() || "?";
