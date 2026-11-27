@@ -2,7 +2,7 @@
 
 import { useCallback, useEffect, useRef, useState } from "react";
 import Link from "next/link";
-import { ChevronLeft, ChevronRight, Pause, Play } from "lucide-react";
+import { ChevronLeft, ChevronRight, Pause, Play } from "@/components/icons";
 import type { Listing } from "@zhivago/shared";
 import { ListingCard } from "@/components/ListingCard";
 import styles from "./FeaturedCarousel.module.css";

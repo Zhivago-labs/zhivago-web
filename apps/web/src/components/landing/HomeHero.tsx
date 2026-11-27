@@ -2,7 +2,7 @@
 
 import { useState, type FormEvent } from "react";
 import { useRouter } from "next/navigation";
-import { Search } from "lucide-react";
+import { Search } from "@/components/icons";
 import shared from "./shared.module.css";
 import styles from "./HomeHero.module.css";
 

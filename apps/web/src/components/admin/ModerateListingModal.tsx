@@ -1,7 +1,7 @@
 "use client";
 
 import { useState } from "react";
-import { ShieldAlert, X } from "lucide-react";
+import { ShieldAlert, X } from "@/components/icons";
 import {
   approveListingAction,
   pendingListingAction,

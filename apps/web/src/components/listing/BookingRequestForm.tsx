@@ -1,7 +1,7 @@
 "use client";
 
 import { useState } from "react";
-import { CalendarRange, MessageCircle, Lock } from "lucide-react";
+import { CalendarRange, MessageCircle, Lock } from "@/components/icons";
 import { useChatSocket } from "@/components/chat/ChatSocketProvider";
 import { RentalBookingCalendar } from "./RentalBookingCalendar";
 import { getPublicApiUrl } from "@/lib/public-api";

@@ -40,7 +40,7 @@ import {
   X,
   RotateCcw,
   Search,
-} from "lucide-react";
+} from "@/components/icons";
 import { useChatSocket } from "@/components/chat/ChatSocketProvider";
 import { listingDraft } from "@/lib/listing-draft";
 import type { MyOrganization } from "@/lib/organizations-api";

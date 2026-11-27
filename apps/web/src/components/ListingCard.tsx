@@ -2,7 +2,7 @@
 
 import { useState } from "react";
 import Link from "next/link";
-import { BedDouble, Droplet, Car, Maximize2, BadgeCheck, ChevronLeft, ChevronRight, Images } from "lucide-react";
+import { BedDouble, Droplet, Car, Maximize2, BadgeCheck, ChevronLeft, ChevronRight, Images } from "@/components/icons";
 import type { Listing } from "@zhivago/shared";
 import { formatPrice } from "@/lib/api";
 import { catalogRegion } from "@/lib/catalog-region";

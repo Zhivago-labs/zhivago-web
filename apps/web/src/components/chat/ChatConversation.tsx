@@ -2,7 +2,7 @@
 
 import { Fragment, useCallback, useEffect, useLayoutEffect, useRef, useState } from "react";
 import Link from "next/link";
-import { Ban, Flag, Lock, Unlock, Send, Handshake, CalendarRange, WifiOff, RotateCcw, ArrowDown } from "lucide-react";
+import { Ban, Flag, Lock, Unlock, Send, Handshake, CalendarRange, WifiOff, RotateCcw, ArrowDown } from "@/components/icons";
 import type { Negotiation, NegotiationRound } from "@zhivago/shared";
 import { useChatSocket } from "./ChatSocketProvider";
 import {

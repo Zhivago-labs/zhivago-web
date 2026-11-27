@@ -2,7 +2,7 @@
 
 import { useState, useEffect } from "react";
 import { usePathname } from "next/navigation";
-import { MessageCircle } from "lucide-react";
+import { MessageCircle } from "@/components/icons";
 import { useChatSocket } from "./ChatSocketProvider";
 import styles from "./FloatingChatButton.module.css";
 

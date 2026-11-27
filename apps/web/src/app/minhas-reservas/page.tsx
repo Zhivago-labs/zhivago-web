@@ -4,7 +4,7 @@ import type { Metadata } from "next";
 import { requireAuth } from "@/lib/session";
 import { getApiUrl } from "@/lib/api";
 import { GuestBookingItem, type GuestBookingData } from "@/components/dashboard/GuestBookingItem";
-import { CalendarRange, ArrowLeft, Search, Building2 } from "lucide-react";
+import { CalendarRange, ArrowLeft, Search, Building2 } from "@/components/icons";
 import styles from "./page.module.css";
 
 export const metadata: Metadata = {

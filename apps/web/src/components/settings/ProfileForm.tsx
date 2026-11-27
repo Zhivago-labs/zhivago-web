@@ -1,7 +1,7 @@
 "use client";
 
 import { useRef, useState } from "react";
-import { User, Phone, Building2, FileText, CheckCircle2, AlertCircle, Save, Camera } from "lucide-react";
+import { User, Phone, Building2, FileText, CheckCircle2, AlertCircle, Save, Camera } from "@/components/icons";
 import { getPublicApiUrl } from "@/lib/public-api";
 import { useRouter } from "next/navigation";
 import styles from "./SettingsForms.module.css";

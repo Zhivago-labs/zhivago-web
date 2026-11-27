@@ -1,5 +1,5 @@
 import Link from "next/link";
-import { Search, Mail, Phone, ChatBubble, Group, Filter } from "iconoir-react";
+import { Search, Mail, Phone, ChatBubble, Group, Filter } from "@/components/icons";
 import { requireWorkspace, workspaceFetch } from "@/lib/workspace";
 import type { ContactOpportunity, WorkspaceContacts } from "@/lib/workspace-types";
 import { getOrganizationBuildings, getOrganizationListings, getMyAssignedListings } from "@/lib/organizations-api";

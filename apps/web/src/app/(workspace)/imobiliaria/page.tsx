@@ -1,6 +1,6 @@
 import Link from "next/link";
 import type { Metadata } from "next";
-import { Sparks, Clock, WarningCircle, UserXmark, Search, ArrowRight, Building, User, Percentage, Timer } from "iconoir-react";
+import { Sparks, Clock, WarningCircle, UserXmark, Search, ArrowRight, Building, User, Percentage, Timer } from "@/components/icons";
 import { requireAuth } from "@/lib/session";
 import { getMyOrganization, getOrganizationBuildings, getOrganizationListings, getMyAssignedListings } from "@/lib/organizations-api";
 import { getOrganizationLeads, getOrganizationMetricsForPeriod, getLeadAssignees, SOURCE_LABELS } from "@/lib/leads-api";

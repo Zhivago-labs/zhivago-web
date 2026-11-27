@@ -1,7 +1,7 @@
 "use client";
 
 import { useState, useRef } from "react";
-import { AlertTriangle, X, Ban } from "lucide-react";
+import { AlertTriangle, X, Ban } from "@/components/icons";
 import styles from "./RejectListingButton.module.css";
 
 const PRESET_REASONS = [

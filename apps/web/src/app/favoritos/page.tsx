@@ -2,7 +2,7 @@
 
 import { useEffect, useState } from "react";
 import Link from "next/link";
-import { Heart, ArrowLeft } from "lucide-react";
+import { Heart, ArrowLeft } from "@/components/icons";
 import { LoadingState } from "@/components/feedback/LoadingState";
 import { PageState } from "@/components/feedback/PageState";
 import { ErrorState } from "@/components/ErrorState";
@@ -43,7 +43,7 @@ export default function FavoritesPage() {
           </Link>
           <div className={styles.titleRow}>
             <h1 className={styles.title}>
-              <Heart size={28} className={styles.titleIcon} />
+              <Heart size={28} weight="fill" className={styles.titleIcon} />
               Meus Favoritos
             </h1>
             {!loading && !loadError && <span className={styles.countBadge}>

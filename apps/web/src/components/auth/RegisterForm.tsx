@@ -3,7 +3,7 @@
 import { useActionState, useState } from "react";
 import Link from "next/link";
 import Image from "next/image";
-import { Eye, EyeOff, User, Building2 } from "lucide-react";
+import { Eye, EyeOff, User, Building2 } from "@/components/icons";
 import { registerAction } from "@/lib/actions/auth";
 import { GoogleSignInButton } from "./GoogleSignInButton";
 import { FeedbackNotice } from "@/components/feedback/FeedbackNotice";

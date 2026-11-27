@@ -1,4 +1,4 @@
-import { BadgeCheck, ClipboardCheck, MessageCircle, KeyRound } from "lucide-react";
+import { BadgeCheck, ClipboardCheck, MessageCircle, KeyRound } from "@/components/icons";
 import shared from "./shared.module.css";
 import styles from "./WhyZhivagoSection.module.css";
 

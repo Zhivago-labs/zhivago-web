@@ -1,4 +1,4 @@
-import { Building2, MapPin, Home } from "lucide-react";
+import { Building2, MapPin, Home } from "@/components/icons";
 import { BuildingRoleSelect } from "./BuildingRoleSelect";
 import { CreateBuildingForm } from "./CreateBuildingForm";
 import type { OrganizationBuilding, OrganizationMember } from "@zhivago/shared";

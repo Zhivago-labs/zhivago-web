@@ -1,6 +1,6 @@
 import Link from "next/link";
 import type { Metadata } from "next";
-import { ArrowLeft, BadgeCheck, Clock, FileText, Users, UserCheck, KeyRound, Mail, Home } from "lucide-react";
+import { ArrowLeft, BadgeCheck, Clock, FileText, Users, UserCheck, KeyRound, Mail, Home } from "@/components/icons";
 import workspace from "@/components/workspace/Workspace.module.css";
 import teamHeader from "./TeamHeader.module.css";
 import { requireAuth } from "@/lib/session";

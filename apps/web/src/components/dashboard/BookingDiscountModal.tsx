@@ -1,7 +1,7 @@
 "use client";
 
 import { useState, useActionState, useEffect } from "react";
-import { Tag, X, Check, RotateCcw } from "lucide-react";
+import { Tag, X, Check, RotateCcw } from "@/components/icons";
 import { setBookingDiscountAction } from "@/lib/actions/listings";
 import styles from "./DiscountModal.module.css";
 

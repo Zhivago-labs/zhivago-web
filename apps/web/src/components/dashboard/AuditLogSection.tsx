@@ -1,4 +1,4 @@
-import { FileClock } from "lucide-react";
+import { FileClock } from "@/components/icons";
 import type { OrganizationAuditLogEntry } from "@zhivago/shared";
 import styles from "./TeamSection.module.css";
 

@@ -1,7 +1,7 @@
 "use client";
 
 import { useEffect, useState, useCallback, useMemo } from "react";
-import { Star, MessageSquare, AlertCircle, CheckCircle2 } from "lucide-react";
+import { Star, MessageSquare, AlertCircle, CheckCircle2 } from "@/components/icons";
 import { getPublicApiUrl } from "@/lib/public-api";
 import { useChatSocket } from "@/components/chat/ChatSocketProvider";
 import type { SessionUser } from "@/lib/session";
@@ -52,6 +52,7 @@ function StarRating({ value, onChange }: { value: number; onChange?: (val: numbe
           >
             <Star
               size={onChange ? 24 : 16}
+              weight={isFilled ? "fill" : "regular"}
               className={isFilled ? styles.starFilled : styles.starEmpty}
             />
           </button>
@@ -156,7 +157,7 @@ export function ListingReviews({ listingId, isSeasonal, user }: ListingReviewsPr
         <h2 className={styles.title}>{isSeasonal ? "Avaliações dos hóspedes" : "Avaliações de hospedagens anteriores"}</h2>
         {reviews.length > 0 && (
           <div className={styles.scoreBadge}>
-            <Star size={18} className={styles.starFilled} />
+            <Star size={18} weight="fill" className={styles.starFilled} />
             <span className={styles.scoreText}>{averageRating}</span>
             <span className={styles.countText}>({reviews.length} {reviews.length === 1 ? "avaliação" : "avaliações"})</span>
           </div>

@@ -1,6 +1,6 @@
 "use client";
 
-import { MessageSquare } from "lucide-react";
+import { MessageSquare } from "@/components/icons";
 import { useChatSocket } from "@/components/chat/ChatSocketProvider";
 
 export function DashboardMessagesButton({ className }: { className?: string }) {

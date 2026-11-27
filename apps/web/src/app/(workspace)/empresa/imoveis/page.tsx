@@ -1,5 +1,5 @@
 import Link from "next/link";
-import { Upload, Plus, InfoCircle } from "iconoir-react";
+import { Upload, Plus, InfoCircle } from "@/components/icons";
 import { requireWorkspace } from "@/lib/workspace";
 import { getOrganizationListings, getMyAssignedListings } from "@/lib/organizations-api";
 import { CompactListings } from "@/components/workspace/CompactListings";

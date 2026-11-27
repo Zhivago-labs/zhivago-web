@@ -1,5 +1,5 @@
 import Link from "next/link";
-import { ArrowUpRight } from "lucide-react";
+import { ArrowUpRight } from "@/components/icons";
 import shared from "./shared.module.css";
 import styles from "./ModalitiesSection.module.css";
 

@@ -1,7 +1,7 @@
 "use client";
 
 import { useEffect } from "react";
-import { X, Sparkles } from "lucide-react";
+import { X, Sparkles } from "@/components/icons";
 import { AVAILABLE_AMENITIES } from "@/components/listings/AmenitiesSelector";
 import styles from "./AmenitiesModal.module.css";
 

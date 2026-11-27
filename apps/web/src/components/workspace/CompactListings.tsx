@@ -2,7 +2,7 @@
 import { useState } from "react";
 import Image from "next/image";
 import Link from "next/link";
-import { MoreHoriz, EditPencil, Search, Building } from "iconoir-react";
+import { MoreHoriz, EditPencil, Search, Building } from "@/components/icons";
 import type { OwnedListing } from "@/lib/listings-api";
 import { ActionForm } from "@/components/ActionForm";
 import { ConfirmSubmitButton } from "@/components/dashboard/ConfirmSubmitButton";

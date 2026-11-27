@@ -1,7 +1,7 @@
 import type { Metadata } from "next";
 import Link from "next/link";
 import { redirect } from "next/navigation";
-import { Building2, Clock, KeyRound, XCircle } from "lucide-react";
+import { Building2, Clock, KeyRound, XCircle } from "@/components/icons";
 import { requireAuth } from "@/lib/session";
 import { getMyOrganization } from "@/lib/organizations-api";
 import { getMyJoinRequest } from "@/lib/join-requests-api";

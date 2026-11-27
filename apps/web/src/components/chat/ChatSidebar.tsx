@@ -2,7 +2,7 @@
 
 import { useEffect, useState, Suspense, useMemo } from "react";
 import { useSearchParams } from "next/navigation";
-import { X, ArrowLeft, MessageCircle, Search, Building2 } from "lucide-react";
+import { X, ArrowLeft, MessageCircle, Search, Building2 } from "@/components/icons";
 import { useChatSocket } from "./ChatSocketProvider";
 import { ChatConversation } from "./ChatConversation";
 import { avatarUrl, messagePreview } from "./chat-utils";

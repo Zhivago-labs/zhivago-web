@@ -1,5 +1,5 @@
 import Link from "next/link";
-import { Mail, Phone, ChatBubble, ArrowLeft } from "iconoir-react";
+import { Mail, Phone, ChatBubble, ArrowLeft } from "@/components/icons";
 import { requireWorkspace } from "@/lib/workspace";
 import { getApiUrl } from "@/lib/api";
 import { safeRedirectTarget } from "@/lib/safe-redirect";

@@ -2,7 +2,7 @@
 
 import { useRef, useState } from "react";
 import { useRouter } from "next/navigation";
-import { Camera, MediaImagePlus as ImagePlus, Trash as Trash2, Building as Building2, Phone, FloppyDisk as Save } from "iconoir-react";
+import { Camera, MediaImagePlus as ImagePlus, Trash as Trash2, Building as Building2, Phone, FloppyDisk as Save } from "@/components/icons";
 import { getPublicApiUrl } from "@/lib/public-api";
 import forms from "@/components/settings/SettingsForms.module.css";
 import styles from "./ShowcaseForm.module.css";

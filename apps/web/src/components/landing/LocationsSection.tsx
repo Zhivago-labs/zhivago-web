@@ -1,5 +1,5 @@
 import Link from "next/link";
-import { MapPin } from "lucide-react";
+import { MapPin } from "@/components/icons";
 import type { CitySummary } from "./home-data";
 import shared from "./shared.module.css";
 import styles from "./LocationsSection.module.css";

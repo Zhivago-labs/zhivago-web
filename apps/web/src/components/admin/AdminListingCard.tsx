@@ -8,7 +8,7 @@ import {
   Camera,
   Building,
   Clock,
-} from "lucide-react";
+} from "@/components/icons";
 import type { AdminListing } from "@/lib/admin-api";
 import {
   approveListingAction,

@@ -1,7 +1,7 @@
 "use client";
 
 import { useEffect, useId, useRef, useState } from "react";
-import { ImagePlus, X, ChevronLeft, ChevronRight, Trash2, Star, CircleAlert, ArrowLeft, ArrowRight } from "lucide-react";
+import { ImagePlus, X, ChevronLeft, ChevronRight, Trash2, Star, CircleAlert, ArrowLeft, ArrowRight } from "@/components/icons";
 import { thumbnailUrl } from "@/lib/images";
 import styles from "./MultiImageInput.module.css";
 

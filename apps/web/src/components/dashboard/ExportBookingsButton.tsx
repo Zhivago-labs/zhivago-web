@@ -1,6 +1,6 @@
 "use client";
 
-import { Download } from "lucide-react";
+import { Download } from "@/components/icons";
 import type { ReceivedBooking } from "@/lib/listings-api";
 import styles from "./ExportBookingsButton.module.css";
 

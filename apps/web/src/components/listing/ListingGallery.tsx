@@ -1,7 +1,7 @@
 "use client";
 
 import { useState } from "react";
-import { ChevronLeft, ChevronRight, Maximize2 } from "lucide-react";
+import { ChevronLeft, ChevronRight, Maximize2 } from "@/components/icons";
 import { useSmoothImage } from "@/lib/useSmoothImage";
 import { ImageLoadingIndicator } from "./ImageLoadingIndicator";
 import { PropertyPhotoViewer } from "./PropertyPhotoViewer";

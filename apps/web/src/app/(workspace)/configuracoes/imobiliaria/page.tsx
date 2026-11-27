@@ -1,6 +1,6 @@
 import Link from "next/link";
 import type { Metadata } from "next";
-import { ArrowLeft, Building as Store, OpenNewWindow as ExternalLink } from "iconoir-react";
+import { ArrowLeft, Building as Store, OpenNewWindow as ExternalLink } from "@/components/icons";
 import { requireAuth } from "@/lib/session";
 import { getMyOrganization } from "@/lib/organizations-api";
 import { getAgencyProfile } from "@/lib/api";

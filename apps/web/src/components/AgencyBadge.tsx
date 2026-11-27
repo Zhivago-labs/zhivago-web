@@ -1,4 +1,4 @@
-import { BadgeCheck } from "lucide-react";
+import { BadgeCheck } from "@/components/icons";
 import styles from "./AgencyBadge.module.css";
 
 export function AgencyBadge({ verified }: { verified: boolean }) {

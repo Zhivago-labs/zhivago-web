@@ -2,7 +2,7 @@
 
 import { useActionState, useState } from "react";
 import Image from "next/image";
-import { User, Building2 } from "lucide-react";
+import { User, Building2 } from "@/components/icons";
 import { completeOnboardingAction } from "@/lib/actions/auth";
 import { FeedbackNotice } from "@/components/feedback/FeedbackNotice";
 import styles from "./AuthForm.module.css";

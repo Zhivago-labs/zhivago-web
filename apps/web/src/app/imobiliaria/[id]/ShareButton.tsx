@@ -1,7 +1,7 @@
 "use client";
 
 import { useState } from "react";
-import { Share2, Check } from "lucide-react";
+import { Share2, Check } from "@/components/icons";
 import styles from "./page.module.css";
 
 interface ShareButtonProps {

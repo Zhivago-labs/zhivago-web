@@ -2,7 +2,7 @@ import type { Metadata } from 'next';
 import Image from 'next/image';
 import Link from 'next/link';
 import type { PurchasedProperty } from '@zhivago/shared';
-import { Building2, KeyRound, MapPin, MessageCircle } from 'lucide-react';
+import { Building2, KeyRound, MapPin, MessageCircle } from "@/components/icons";
 import { requireAuth } from '@/lib/session';
 import { getMyPurchases } from '@/lib/purchases-api';
 import { ErrorState } from '@/components/ErrorState';

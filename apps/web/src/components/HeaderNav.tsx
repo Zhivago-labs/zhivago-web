@@ -17,7 +17,7 @@ import {
   LogOut,
   MessageCircle,
   Store,
-} from "lucide-react";
+} from "@/components/icons";
 import { UserMenu } from "@/components/UserMenu";
 import { NotificationBell } from "@/components/notifications/NotificationBell";
 import { logoutAction } from "@/lib/actions/auth";

@@ -1,4 +1,4 @@
-import { CircleAlert, CircleCheck, Info } from "lucide-react";
+import { CircleAlert, CircleCheck, Info } from "@/components/icons";
 import type { ReactNode } from "react";
 import styles from "./Feedback.module.css";
 

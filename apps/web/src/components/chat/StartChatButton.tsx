@@ -2,7 +2,7 @@
 
 import { useState } from "react";
 import { useRouter } from "next/navigation";
-import { MessageCircle } from "lucide-react";
+import { MessageCircle } from "@/components/icons";
 import { useChatSocket } from "./ChatSocketProvider";
 import { getPublicApiUrl } from "@/lib/public-api";
 import styles from "./StartChatButton.module.css";

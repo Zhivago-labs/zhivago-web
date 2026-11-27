@@ -1,4 +1,4 @@
-import { Mail } from "lucide-react";
+import { Mail } from "@/components/icons";
 import type { OrganizationInvite } from "@zhivago/shared";
 import { acceptInviteAction, declineInviteAction } from "@/lib/actions/organizations";
 import { ActionForm } from "@/components/ActionForm";

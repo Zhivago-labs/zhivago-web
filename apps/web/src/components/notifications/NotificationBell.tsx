@@ -1,7 +1,7 @@
 "use client";
 
 import { useEffect, useRef, useState } from "react";
-import { Bell, CheckCheck } from "lucide-react";
+import { Bell, CheckCheck } from "@/components/icons";
 import { useChatSocket, type AppNotification } from "@/components/chat/ChatSocketProvider";
 import styles from "./NotificationBell.module.css";
 

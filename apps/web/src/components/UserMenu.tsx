@@ -2,7 +2,7 @@
 
 import React, { useState, useRef, useEffect } from "react";
 import Link from "next/link";
-import { LayoutDashboard, Building2, Settings, LogOut, User, ChevronDown, Shield, CalendarRange, MessageCircle, Store } from "lucide-react";
+import { LayoutDashboard, Building2, Settings, LogOut, User, ChevronDown, Shield, CalendarRange, MessageCircle, Store } from "@/components/icons";
 import { logoutAction } from "@/lib/actions/auth";
 import { PushNotificationOptIn } from "@/components/PushNotificationOptIn";
 import { useChatSocket } from "@/components/chat/ChatSocketProvider";

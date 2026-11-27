@@ -1,6 +1,6 @@
 "use client";
 
-import { Heart } from "lucide-react";
+import { Heart } from "@/components/icons";
 import { useFavorites } from "./FavoritesContext";
 import styles from "./FavoriteButton.module.css";
 
@@ -31,6 +31,7 @@ export function FavoriteButton({ listingId, size = 20, className = "", label }: 
     >
       <Heart
         size={size}
+        weight={active ? "fill" : "regular"}
         className={active ? styles.heartFilled : styles.heartOutline}
       />
       {label && <span>{active ? "Favoritado" : label}</span>}

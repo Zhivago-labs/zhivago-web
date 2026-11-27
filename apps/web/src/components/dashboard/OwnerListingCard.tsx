@@ -2,7 +2,7 @@
 
 import { useState } from "react";
 import Link from "next/link";
-import { Eye, MessageCircle, Tag, Edit3, Copy } from "lucide-react";
+import { Eye, MessageCircle, Tag, Edit3, Copy } from "@/components/icons";
 import type { OwnedListing } from "@/lib/listings-api";
 import {
   deleteListingAction,

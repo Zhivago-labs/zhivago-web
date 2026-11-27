@@ -24,7 +24,7 @@ import {
   Store,
   ChevronRight,
   KeyRound,
-} from "lucide-react";
+} from "@/components/icons";
 import styles from "./page.module.css";
 
 export const metadata: Metadata = {

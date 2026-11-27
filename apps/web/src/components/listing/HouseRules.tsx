@@ -12,7 +12,7 @@ import {
   Building,
   CheckCircle2,
   XCircle,
-} from "lucide-react";
+} from "@/components/icons";
 import type { Listing } from "@zhivago/shared";
 import styles from "./HouseRules.module.css";
 

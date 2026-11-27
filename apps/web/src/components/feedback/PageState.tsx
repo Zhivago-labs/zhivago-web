@@ -1,5 +1,5 @@
 import Link from "next/link";
-import { ArrowRight, CircleAlert, Search, Heart, RefreshCw } from "lucide-react";
+import { ArrowRight, CircleAlert, Search, Heart, RefreshCw } from "@/components/icons";
 import styles from "./Feedback.module.css";
 
 type Props = { title: string; message: string; kind?: "error" | "empty" | "not-found" | "favorites"; onRetry?: () => void; retrying?: boolean; href?: string; actionLabel?: string };

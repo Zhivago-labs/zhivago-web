@@ -1,7 +1,7 @@
 "use client";
 
 import { useActionState } from "react";
-import { UserPlus, Mail } from "lucide-react";
+import { UserPlus, Mail } from "@/components/icons";
 import { inviteMemberAction } from "@/lib/actions/organizations";
 import styles from "./TeamSection.module.css";
 import formStyles from "@/components/listings/ListingForm.module.css";

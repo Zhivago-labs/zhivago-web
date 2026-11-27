@@ -7,7 +7,7 @@ import { cancelBookingAction, approveBookingAction, rejectBookingAction } from "
 import { ActionForm } from "@/components/ActionForm";
 import { ConfirmSubmitButton } from "./ConfirmSubmitButton";
 import { BookingDiscountModal } from "./BookingDiscountModal";
-import { Calendar, Clock, CheckCircle2, XCircle, User, Building2, Tag } from "lucide-react";
+import { Calendar, Clock, CheckCircle2, XCircle, User, Building2, Tag } from "@/components/icons";
 import styles from "./ReceivedBookingItem.module.css";
 
 function formatDate(value: string): string {

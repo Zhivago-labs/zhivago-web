@@ -32,7 +32,7 @@ import {
   TriangleAlert,
   Lightbulb,
   MapPin,
-} from "lucide-react";
+} from "@/components/icons";
 import type { OwnedListing } from "@/lib/listings-api";
 import {
   deleteListingAction,

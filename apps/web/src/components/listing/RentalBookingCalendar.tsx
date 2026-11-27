@@ -1,7 +1,7 @@
 "use client";
 
 import { useEffect, useState, useMemo } from "react";
-import { ChevronLeft, ChevronRight, Lock } from "lucide-react";
+import { ChevronLeft, ChevronRight, Lock } from "@/components/icons";
 import { getPublicApiUrl } from "@/lib/public-api";
 import { InlineLoading } from "@/components/feedback/InlineLoading";
 import { stayOverlaps, type BookedRange } from "@/lib/stay-period";

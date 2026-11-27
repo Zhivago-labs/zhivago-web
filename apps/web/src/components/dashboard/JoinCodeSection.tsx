@@ -1,7 +1,7 @@
 "use client";
 
 import { useActionState, useState, useSyncExternalStore } from "react";
-import { Check, Copy, KeyRound, MessageCircle, RefreshCw, UserCheck, UserX } from "lucide-react";
+import { Check, Copy, KeyRound, MessageCircle, RefreshCw, UserCheck, UserX } from "@/components/icons";
 import { approveJoinRequestAction, regenerateJoinCodeAction, rejectJoinRequestAction } from "@/lib/actions/join-requests";
 import type { PendingJoinRequest } from "@/lib/join-requests-api";
 import { FeedbackNotice } from "@/components/feedback/FeedbackNotice";

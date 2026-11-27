@@ -1,6 +1,6 @@
 import type { Metadata } from "next";
 import Link from "next/link";
-import { X } from "lucide-react";
+import { X } from "@/components/icons";
 import { LoginForm } from "@/components/auth/LoginForm";
 import { SiteFooter } from "@/components/SiteFooter";
 import { AuthBackgroundPreload } from "@/components/auth/AuthBackgroundPreload";

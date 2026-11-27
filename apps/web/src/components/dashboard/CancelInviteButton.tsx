@@ -1,7 +1,7 @@
 "use client";
 
 import { useActionState } from "react";
-import { X } from "lucide-react";
+import { X } from "@/components/icons";
 import { cancelInviteAction } from "@/lib/actions/organizations";
 import styles from "./TeamSection.module.css";
 

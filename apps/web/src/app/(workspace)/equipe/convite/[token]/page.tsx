@@ -1,6 +1,6 @@
 import Link from "next/link";
 import type { Metadata } from "next";
-import { ArrowLeft } from "lucide-react";
+import { ArrowLeft } from "@/components/icons";
 import { requireAuth } from "@/lib/session";
 import { getMyPendingInvites } from "@/lib/organizations-api";
 import { PendingInviteCard } from "@/components/dashboard/PendingInviteCard";

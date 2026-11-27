@@ -1,6 +1,6 @@
 import Link from "next/link";
 import type { Metadata } from "next";
-import { ChatBubble, Phone, Mail } from "iconoir-react";
+import { ChatBubble, Phone, Mail } from "@/components/icons";
 import { requireAuth } from "@/lib/session";
 import { safeRedirectTarget } from "@/lib/safe-redirect";
 import { getLeadDetail, getLeadAssignees, getTransferImpact, SOURCE_LABELS, OPERATION_LABELS } from "@/lib/leads-api";

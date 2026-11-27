@@ -21,7 +21,7 @@ import {
   Search,
   Sparkles,
   CheckCircle2,
-} from "lucide-react";
+} from "@/components/icons";
 import type { SessionUser } from "@/lib/session";
 import type { MyStats, OwnedListing, ReceivedBooking } from "@/lib/listings-api";
 import { LineChart } from "./LineChart";

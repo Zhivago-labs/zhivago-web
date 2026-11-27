@@ -2,7 +2,7 @@
 
 import { useState } from "react";
 import Link from "next/link";
-import { Building2, Plus, Upload } from "lucide-react";
+import { Building2, Plus, Upload } from "@/components/icons";
 import type { OwnedListing } from "@/lib/listings-api";
 import { OwnerListingCard } from "./OwnerListingCard";
 import styles from "@/app/(workspace)/dashboard/page.module.css";

@@ -1,5 +1,5 @@
 import Link from "next/link";
-import { Sparks, Group, Clock, Building, InfoCircle, NavArrowRight, ArrowRight, Calendar, Eye, ChatBubble, GraphUp } from "iconoir-react";
+import { Sparks, Group, Clock, Building, InfoCircle, NavArrowRight, ArrowRight, Calendar, Eye, ChatBubble, GraphUp } from "@/components/icons";
 import { requireWorkspace, workspaceFetch } from "@/lib/workspace";
 import type { WorkspaceOverview } from "@/lib/workspace-types";
 import { avatarTone, initials, fmtAge, fmtDateTime } from "@/components/workspace/workspace-ui";

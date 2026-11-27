@@ -1,6 +1,6 @@
 import Link from "next/link";
 import type { Metadata } from "next";
-import { ArrowLeft } from "lucide-react";
+import { ArrowLeft } from "@/components/icons";
 import { requireAuth } from "@/lib/session";
 import { NewListingForm } from "@/components/listings/NewListingForm";
 import { getMyOrganization, getOrganizationBuildings } from "@/lib/organizations-api";

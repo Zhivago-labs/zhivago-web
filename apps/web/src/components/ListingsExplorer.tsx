@@ -18,7 +18,7 @@ import {
   MapPin,
   User,
   Building,
-} from "lucide-react";
+} from "@/components/icons";
 import type { Listing, ListingType } from "@zhivago/shared";
 import { AVAILABLE_AMENITIES } from "./listings/AmenitiesSelector";
 import { ListingCard } from "./ListingCard";

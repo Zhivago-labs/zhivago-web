@@ -2,7 +2,7 @@
 
 import { useState } from "react";
 import Link from "next/link";
-import { Calendar, MapPin, MessageCircle, AlertCircle, CheckCircle2, XCircle, Clock, Flag, Star } from "lucide-react";
+import { Calendar, MapPin, MessageCircle, AlertCircle, CheckCircle2, XCircle, Clock, Flag, Star } from "@/components/icons";
 import { bookingPhase } from "@/lib/booking-phase";
 import { useChatSocket } from "@/components/chat/ChatSocketProvider";
 import { getPublicApiUrl } from "@/lib/public-api";

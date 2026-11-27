@@ -1,6 +1,6 @@
 import Link from "next/link";
 import { redirect } from "next/navigation";
-import { UserXmark } from "iconoir-react";
+import { UserXmark } from "@/components/icons";
 import { requireWorkspace, workspaceFetch } from "@/lib/workspace";
 import type { UnassignedQueue } from "@/lib/workspace-types";
 import { getLeadAssignees, SOURCE_LABELS, OPERATION_LABELS } from "@/lib/leads-api";

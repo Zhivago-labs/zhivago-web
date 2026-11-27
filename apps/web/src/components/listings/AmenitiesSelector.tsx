@@ -17,7 +17,7 @@ import {
   Dog,
   KeyRound,
   Check,
-} from "lucide-react";
+} from "@/components/icons";
 import styles from "./AmenitiesSelector.module.css";
 
 export const AVAILABLE_AMENITIES = [

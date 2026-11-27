@@ -8,7 +8,7 @@ import {
   ShieldCheck,
   ChevronLeft,
   ChevronRight,
-} from "lucide-react";
+} from "@/components/icons";
 import { requireAuth } from "@/lib/session";
 import { getAdminStats, getAdminListings, getAdminAgencies, getAdminOrganizations } from "@/lib/admin-api";
 import { LineChart } from "@/components/dashboard/LineChart";

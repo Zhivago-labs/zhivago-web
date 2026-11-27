@@ -2,7 +2,7 @@ import Link from "next/link";
 import { notFound } from "next/navigation";
 import Image from "next/image";
 import type { Metadata } from "next";
-import { MapPin, MessageCircle, Pencil } from "lucide-react";
+import { MapPin, MessageCircle, Pencil } from "@/components/icons";
 import { getAgencyProfile } from "@/lib/api";
 import { getSessionUser } from "@/lib/session";
 import { canEditShowcase } from "@/lib/showcase";

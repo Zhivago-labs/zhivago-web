@@ -1,7 +1,7 @@
 "use client";
 
 import { useState } from "react";
-import { ChevronDown, ChevronUp, Sparkles } from "lucide-react";
+import { ChevronDown, ChevronUp, Sparkles } from "@/components/icons";
 import { AmenitiesModal } from "./AmenitiesModal";
 import { AVAILABLE_AMENITIES } from "@/components/listings/AmenitiesSelector";
 import styles from "./ListingOverview.module.css";

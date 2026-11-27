@@ -1,6 +1,6 @@
 "use client";
 
-import { MessageCircle } from "lucide-react";
+import { MessageCircle } from "@/components/icons";
 import { useChatSocket } from "./ChatSocketProvider";
 import { UnreadBadge } from "./UnreadBadge";
 import styles from "@/components/SiteHeader.module.css";

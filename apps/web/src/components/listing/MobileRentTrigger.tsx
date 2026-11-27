@@ -1,7 +1,7 @@
 "use client";
 
 import { useState } from "react";
-import { CalendarRange, X } from "lucide-react";
+import { CalendarRange, X } from "@/components/icons";
 import { BookingRequestForm, type BookingTerms } from "./BookingRequestForm";
 import styles from "./MobileRentTrigger.module.css";
 

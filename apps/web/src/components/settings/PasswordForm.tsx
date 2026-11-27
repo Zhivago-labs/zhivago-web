@@ -1,7 +1,7 @@
 "use client";
 
 import { useState } from "react";
-import { Lock, CheckCircle2, AlertCircle, KeyRound } from "lucide-react";
+import { Lock, CheckCircle2, AlertCircle, KeyRound } from "@/components/icons";
 import { getPublicApiUrl } from "@/lib/public-api";
 import styles from "./SettingsForms.module.css";
 

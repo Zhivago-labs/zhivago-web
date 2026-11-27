@@ -1,7 +1,7 @@
 "use client";
 
 import { useState } from "react";
-import { Ban, AlertCircle } from "lucide-react";
+import { Ban, AlertCircle } from "@/components/icons";
 import { getPublicApiUrl } from "@/lib/public-api";
 import type { ChatBlockItem } from "@/lib/chat-api";
 import styles from "./SettingsForms.module.css";

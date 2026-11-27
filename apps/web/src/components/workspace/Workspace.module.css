@@ -19,6 +19,26 @@
 .personal a, .personal button { display:flex; align-items:center; gap:8px; font:inherit; padding:12px; border:0; background:none; cursor:pointer; }
 .content { margin-left:252px; min-width:0; }
 .mobileBar, .scrim { display:none; }
+/* ─── Barra lateral recolhível (desktop) ─── */
+.sidebar, .content { transition:width .2s ease, margin-left .2s ease, padding .2s ease; }
+.sidebarTop { display:flex; align-items:center; justify-content:space-between; gap:8px; }
+.collapseToggle { display:grid; place-items:center; width:32px; height:32px; flex-shrink:0; border:1px solid var(--border); border-radius:8px; background:var(--card-bg); color:var(--muted); cursor:pointer; }
+.collapseToggle:hover { color:var(--foreground); border-color:var(--border-hover); background:var(--hover-bg); }
+@media(min-width:761px) {
+  .collapsed .sidebar { width:76px; padding:20px 12px; overflow-x:hidden; }
+  .collapsed .content { margin-left:76px; }
+  .collapsed .label { display:none; }
+  .collapsed .brand { display:none; }
+  .collapsed .sidebarTop { justify-content:center; }
+  .collapsed .companyIdentity { justify-content:center; }
+  .collapsed .companyIdentity img, .collapsed .companyIdentity > span { width:40px; height:40px; }
+  .collapsed .primary { padding:12px 0; }
+  .collapsed .sidebar nav a, .collapsed .publicLink { justify-content:center; padding-left:0; padding-right:0; }
+  .collapsed .personal summary { justify-content:center; }
+  .collapsed .personal[open] { position:relative; }
+  .collapsed .personal[open] > a, .collapsed .personal[open] > form { white-space:nowrap; }
+}
+
 .shell a:focus-visible, .shell button:focus-visible, .shell summary:focus-visible, .shell input:focus-visible, .shell select:focus-visible { outline:3px solid var(--accent); outline-offset:2px; }
 
 /* ─── Tons usados em indicadores, selos e ícones (data-tone) ─── */
@@ -171,7 +191,7 @@ a.row:hover > svg:last-child { color:var(--accent); transform:translateX(2px); }
 
 @media(max-width:1100px) { .metrics { grid-template-columns:repeat(2,minmax(0,1fr)); } .sections { grid-template-columns:1fr; } }
 @media(max-width:760px) {
- .content { margin-left:0; padding-top:56px; } .sidebar { transform:translateX(-100%); z-index:1101; width:270px; } .sidebarOpen { transform:translateX(0); }
+ .content { margin-left:0; padding-top:56px; } .collapseToggle { display:none; } .sidebar { transform:translateX(-100%); z-index:1101; width:270px; } .sidebarOpen { transform:translateX(0); }
  .mobileBar { display:flex; align-items:center; justify-content:space-between; gap:16px; position:fixed; inset:0 0 auto; height:56px; background:var(--card-bg); border-bottom:1px solid var(--border); z-index:1100; padding:12px 16px; font-size:13px; }
  .mobileBar button { background:none; border:0; display:flex; color:inherit; cursor:pointer; }
  .scrim { display:block; position:fixed; inset:56px 0 0; background:#0005; z-index:1100; border:0; }

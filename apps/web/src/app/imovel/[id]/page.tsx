@@ -29,7 +29,7 @@ import {
   Sparkles,
   Tag,
   Users,
-} from "lucide-react";
+} from "@/components/icons";
 import type { Listing } from "@zhivago/shared";
 import { getListing, getSimilarListings, formatPrice } from "@/lib/api";
 import { getSessionUser } from "@/lib/session";

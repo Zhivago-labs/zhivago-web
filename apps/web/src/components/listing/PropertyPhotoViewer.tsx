@@ -15,7 +15,7 @@ import {
   ArrowUpRight,
   ZoomIn,
   ZoomOut,
-} from "lucide-react";
+} from "@/components/icons";
 import { thumbnailImgProps } from "@/lib/images";
 import { useSmoothImage } from "@/lib/useSmoothImage";
 import { ImageLoadingIndicator } from "./ImageLoadingIndicator";

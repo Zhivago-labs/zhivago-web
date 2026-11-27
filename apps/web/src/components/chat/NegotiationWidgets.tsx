@@ -1,7 +1,7 @@
 "use client";
 
 import { useState } from "react";
-import { Handshake } from "lucide-react";
+import { Handshake } from "@/components/icons";
 import type { Negotiation, NegotiationRound, NegotiationSide, ListingOperationType } from "@zhivago/shared";
 import styles from "./ChatConversation.module.css";
 

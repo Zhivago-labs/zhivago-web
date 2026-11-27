@@ -1,5 +1,5 @@
 import Link from "next/link";
-import { ChatBubble, NavArrowRight } from "iconoir-react";
+import { ChatBubble, NavArrowRight } from "@/components/icons";
 import { requireWorkspace, workspaceFetch } from "@/lib/workspace";
 import type { WorkspaceMessage } from "@/lib/workspace-types";
 import { avatarTone, initials } from "@/components/workspace/workspace-ui";

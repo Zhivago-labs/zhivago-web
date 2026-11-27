@@ -1,5 +1,5 @@
 import Link from "next/link";
-import { Search, Calendar } from "iconoir-react";
+import { Search, Calendar } from "@/components/icons";
 import { requireWorkspace, workspaceFetch } from "@/lib/workspace";
 import type { ReceivedBookingsPage } from "@/lib/listings-api";
 import { ReceivedBookingItem } from "@/components/dashboard/ReceivedBookingItem";

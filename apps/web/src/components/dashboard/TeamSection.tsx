@@ -1,5 +1,5 @@
 import Link from "next/link";
-import { Users, Home, UserCheck, Mail, ArrowRight, Shuffle, Building2 } from "lucide-react";
+import { Users, Home, UserCheck, Mail, ArrowRight, Shuffle, Building2 } from "@/components/icons";
 import { CreateOrganizationForm } from "./CreateOrganizationForm";
 import { InviteMemberForm } from "./InviteMemberForm";
 import { CancelInviteButton } from "./CancelInviteButton";

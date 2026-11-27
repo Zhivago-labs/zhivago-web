@@ -1,7 +1,7 @@
 "use client";
 
 import { useActionState } from "react";
-import { UserMinus } from "lucide-react";
+import { UserMinus } from "@/components/icons";
 import { removeMemberAction } from "@/lib/actions/organizations";
 import styles from "./TeamSection.module.css";
 

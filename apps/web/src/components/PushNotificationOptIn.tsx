@@ -1,7 +1,7 @@
 "use client";
 
 import { useEffect, useState } from "react";
-import { Bell } from "lucide-react";
+import { Bell } from "@/components/icons";
 import { savePushTokenAction } from "@/lib/actions/push";
 import styles from "./PushNotificationOptIn.module.css";
 

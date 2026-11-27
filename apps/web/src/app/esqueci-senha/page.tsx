@@ -1,7 +1,7 @@
 import type { Metadata } from "next";
 import Link from "next/link";
 import Image from "next/image";
-import { ArrowLeft } from "lucide-react";
+import { ArrowLeft } from "@/components/icons";
 import { ForgotPasswordForm } from "@/components/auth/ForgotPasswordForm";
 import { SiteFooter } from "@/components/SiteFooter";
 import { AuthBackgroundPreload } from "@/components/auth/AuthBackgroundPreload";
