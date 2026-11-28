@@ -159,6 +159,7 @@ export async function addTaskAction(_prev: LeadFormState, formData: FormData): P
   }, "Não foi possível criar a tarefa.");
   if ("error" in result) return { error: result.error };
   revalidateLead(leadId);
+  return { ok: "Tarefa criada." };
 }
 
 export async function toggleTaskCompletedAction(_prev: LeadFormState, formData: FormData): Promise<LeadFormState> {

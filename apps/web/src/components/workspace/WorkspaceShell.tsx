@@ -68,7 +68,7 @@ export function WorkspaceShell({ membership, user, hasSeason, initialCollapsed =
         </button>
       </div>
       <div className={styles.companyIdentity} title={tip(company.name)}>{company.logo ? <Image unoptimized src={company.logo} alt="" width={42} height={42} /> : <span>{company.name.split(/\s+/).slice(0,2).map(word => word[0]).join("").toUpperCase()}</span>}<div className={styles.label}><strong>{company.name}</strong><small>Imobiliária ativa</small></div></div>
-      {canCreate && <Link href="/anuncios/novo" className={styles.primary} onClick={() => setOpen(false)} title={tip("Novo anúncio")} aria-label={collapsed ? "Novo anúncio" : undefined}><Plus width={20} height={20} aria-hidden="true" /><span className={styles.label}>Novo anúncio</span></Link>}
+      {canCreate && <Link href="/anuncios/novo" className={`${styles.primary} ${pathname.startsWith("/empresa/contatos") ? styles.primaryQuiet : ""}`} onClick={() => setOpen(false)} title={tip("Novo anúncio")} aria-label={collapsed ? "Novo anúncio" : undefined}><Plus width={20} height={20} aria-hidden="true" /><span className={styles.label}>Novo anúncio</span></Link>}
       <nav aria-label="Área da imobiliária">{links.map(({ href, label, icon: Icon }) => {
         const active = href === "/empresa" ? pathname === href : pathname === href || pathname.startsWith(`${href}/`) || (href === "/empresa/imoveis" && pathname.startsWith("/anuncios"));
         return <Link href={href} key={href} aria-current={active ? "page" : undefined} onClick={() => setOpen(false)} title={tip(label)} aria-label={collapsed ? label : undefined}><Icon width={20} height={20} strokeWidth={1.5} aria-hidden="true" /><span className={styles.label}>{label}</span></Link>;

@@ -10,6 +10,7 @@ import { LineChart } from "@/components/dashboard/LineChart";
 import { avatarTone, initials, STAGE_TONES, fmtHours, pct } from "@/components/workspace/workspace-ui";
 import type { Lead, LeadStatus, MetricsCut } from "@zhivago/shared";
 import type { MyOrganization } from "@/lib/organizations-api";
+import { safeRedirectTarget } from "@/lib/safe-redirect";
 import styles from "./page.module.css";
 
 export const metadata: Metadata = { title: "Pipeline de Leads" };
@@ -55,11 +56,13 @@ function StatTiles({ items, label }: { items: StatTile[]; label?: string }) {
 }
 
 type Props = {
-  searchParams: Promise<{ view?: string; brokerId?: string; buildingId?: string; listingId?: string; search?: string; status?: string; page?: string; unassigned?: string; overdue?: string; source?: string; hideClosed?: string; days?: string }>;
+  searchParams: Promise<{ view?: string; brokerId?: string; buildingId?: string; listingId?: string; search?: string; status?: string; page?: string; unassigned?: string; overdue?: string; source?: string; hideClosed?: string; days?: string; back?: string }>;
 };
 
 export default async function ImobiliariaPipelinePage({ searchParams }: Props) {
   const params = await searchParams;
+  // Vindo de Contatos › Oportunidades: caminho de volta com os filtros e a página de origem.
+  const back = safeRedirectTarget(params.back, "") || undefined;
   const { view: viewParam, brokerId, buildingId, listingId } = params;
   const unassigned = params.unassigned === "true" ? "true" : undefined;
   const overdue = params.overdue === "true" ? "true" : undefined;
@@ -94,6 +97,7 @@ export default async function ImobiliariaPipelinePage({ searchParams }: Props) {
 
   return (
     <main className={styles.main}>
+      {back && <Link href={back} className={styles.backLink}>← Voltar para Oportunidades</Link>}
       <div className={styles.pageHeader}>
         <div><h1 className={styles.title}>Kanban</h1><p className={styles.subtitle}>{subtitle}</p></div>
         {hasOrgWideView && (
@@ -112,6 +116,7 @@ export default async function ImobiliariaPipelinePage({ searchParams }: Props) {
           canManage={canManage}
           membership={membership}
           page={page}
+          back={back}
           filters={{ brokerId, buildingId, listingId, search, status, unassigned, overdue, source, hideClosed }}
         />
       )}
@@ -126,12 +131,14 @@ async function PipelineView({
   filters,
   membership,
   page,
+  back,
 }: {
   token: string;
   hasOrgWideView: boolean;
   canManage: boolean;
   membership: MyOrganization;
   page: number;
+  back?: string;
   filters: { brokerId?: string; buildingId?: string; listingId?: string; search?: string; status?: string; unassigned?: string; overdue?: string; source?: string; hideClosed?: string };
 }) {
   // Paginação do resultado completo; os filtros são preservados entre páginas.
@@ -149,6 +156,7 @@ async function PipelineView({
   const toggleHref = (key: string, value: string | undefined) => {
     const query = new URLSearchParams({ view: "pipeline" });
     for (const [k, v] of Object.entries({ ...filters, [key]: value })) if (v) query.set(k, v);
+    if (back) query.set("back", back);
     return `/imobiliaria?${query}`;
   };
 
@@ -156,8 +164,17 @@ async function PipelineView({
   const pageHref = (nextPage: number) => {
     const query = new URLSearchParams({ view: "pipeline", page: String(nextPage) });
     for (const [key, value] of Object.entries(filters)) if (value) query.set(key, value);
+    if (back) query.set("back", back);
     return `/imobiliaria?${query}`;
   };
+  // A ficha do cartão volta para este mesmo Kanban (filtros, página e o "voltar" para Contatos).
+  const here = (() => {
+    const query = new URLSearchParams({ view: "pipeline" });
+    for (const [key, value] of Object.entries(filters)) if (value) query.set(key, value);
+    if (page > 1) query.set("page", String(page));
+    if (back) query.set("back", back);
+    return `/imobiliaria?${query}`;
+  })();
   const hasFilters = Boolean(filters.brokerId || filters.buildingId || filters.listingId || filters.search || filters.status || filters.unassigned || filters.overdue || filters.source);
 
   return (
@@ -197,8 +214,9 @@ async function PipelineView({
         {filters.unassigned && <input type="hidden" name="unassigned" value="true" />}
         {filters.overdue && <input type="hidden" name="overdue" value="true" />}
         {filters.hideClosed && <input type="hidden" name="hideClosed" value="1" />}
+        {back && <input type="hidden" name="back" value={back} />}
         <button type="submit" className={`${styles.filterButton} ${styles.filterButtonPrimary}`}>Filtrar</button>
-        {hasFilters && <Link href="/imobiliaria?view=pipeline" className={styles.filterButton}>Limpar</Link>}
+        {hasFilters && <Link href={back ? `/imobiliaria?${new URLSearchParams({ view: "pipeline", back })}` : "/imobiliaria?view=pipeline"} className={styles.filterButton}>Limpar</Link>}
       </form>
 
       <nav className={styles.viewTabs} aria-label="Atalhos de triagem" style={{ marginBottom: 12 }}>
@@ -259,7 +277,7 @@ async function PipelineView({
                         ) : (
                           <span className={styles.cardBroker}>{STATUS_LABELS[lead.status]}</span>
                         )}
-                        <Link href={`/imobiliaria/leads/${lead.id}`} className={styles.cardLink} aria-label={`Ver detalhes de ${lead.user.name}`}>
+                        <Link href={`/imobiliaria/leads/${lead.id}?back=${encodeURIComponent(here)}`} className={styles.cardLink} aria-label={`Ver detalhes de ${lead.user.name}`}>
                           Ver detalhes <ArrowRight width={14} height={14} aria-hidden="true" />
                         </Link>
                       </div>

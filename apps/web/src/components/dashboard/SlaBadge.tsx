@@ -3,9 +3,10 @@ import styles from "./SlaBadge.module.css";
 
 const LABELS: Record<SlaStatus, string> = {
   UNASSIGNED: "Sem responsável",
-  PENDING: "Aguardando resposta",
-  AT_RISK: "Em risco",
-  OVERDUE: "Atrasado",
+  // O SLA mede só a 1ª resposta após a atribuição — não se o cliente aguarda resposta depois.
+  PENDING: "Sem primeira resposta",
+  AT_RISK: "1ª resposta em risco",
+  OVERDUE: "1ª resposta atrasada",
   RESPONDED_ON_TIME: "Respondido no prazo",
   RESPONDED_LATE: "Respondido com atraso",
   CLOSED: "Encerrado",

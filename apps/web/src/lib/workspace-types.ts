@@ -34,10 +34,16 @@ export interface ContactPerson {
   id: string; name: string; email: string; phone: string | null;
   lastActivityAt: string; firstEntryAt: string;
   visibleOpportunities: number; matchedOpportunities: number;
+  /** Abertas entre as oportunidades que o usuário pode ver (escopo aplicado no backend). */
+  openOpportunities: number;
+  /** Imóvel da oportunidade visível com atividade mais recente; `otherOpportunities` = o "+N". */
+  primaryListing: { id: string; name: string; leadId: string } | null;
+  otherOpportunities: number;
   stages: Record<string, number>;
   opportunities: ContactOpportunity[];
 }
-interface ContactsBase { sort: string; page: number; limit: number; peopleTotal: number; opportunityTotal: number; total: number }
+/** `baseTotal`: oportunidades autorizadas sem filtro — distingue base vazia de recorte sem resultado. */
+interface ContactsBase { sort: string; page: number; limit: number; peopleTotal: number; opportunityTotal: number; baseTotal: number; total: number }
 export type WorkspaceContacts = (ContactsBase & { view: "people"; items: ContactPerson[] }) | (ContactsBase & { view: "opportunities"; items: ContactOpportunity[] });
 export interface WorkspaceContactDetail {
   contact: { id: string; name: string; email: string; phone: string | null; avatar: string | null; createdAt: string };

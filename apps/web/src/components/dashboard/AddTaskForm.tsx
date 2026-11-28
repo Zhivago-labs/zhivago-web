@@ -1,14 +1,23 @@
 "use client";
 
-import { useActionState } from "react";
+import { useActionState, useEffect, useRef } from "react";
 import { addTaskAction } from "@/lib/actions/leads";
 import styles from "./LeadControls.module.css";
 
-export function AddTaskForm({ leadId, members = [] }: { leadId: string; members?: { memberId: string; name: string }[] }) {
+/** `onSuccess`: quem embute o formulário (prévia de Contatos) recarrega os dados afetados. */
+export function AddTaskForm({ leadId, members = [], onSuccess }: { leadId: string; members?: { memberId: string; name: string }[]; onSuccess?: () => void }) {
   const [state, formAction, pending] = useActionState(addTaskAction, undefined);
+  const formRef = useRef<HTMLFormElement>(null);
+  const onSuccessRef = useRef(onSuccess);
+  useEffect(() => { onSuccessRef.current = onSuccess; });
+  useEffect(() => {
+    if (!state?.ok) return;
+    formRef.current?.reset();
+    onSuccessRef.current?.();
+  }, [state]);
 
   return (
-    <form action={formAction} className={styles.distributionForm}>
+    <form ref={formRef} action={formAction} className={styles.distributionForm}>
       <input type="hidden" name="leadId" value={leadId} />
       <input type="text" name="title" placeholder="Ex: Ligar para confirmar visita" className={styles.input} required maxLength={200} aria-label="Título da tarefa" />
       <label className={styles.hint}>Prazo (horário de Brasília)
@@ -21,7 +30,10 @@ export function AddTaskForm({ leadId, members = [] }: { leadId: string; members?
         </select>
       )}
       <button type="submit" disabled={pending} className={styles.submitButton}>{pending ? "Adicionando…" : "Adicionar tarefa"}</button>
-      {state?.error && <p className={styles.error}>{state.error}</p>}
+      <span aria-live="polite">
+        {state?.error && <span className={styles.error}>{state.error}</span>}
+        {state?.ok && <span className={styles.ok}>Tarefa criada.</span>}
+      </span>
     </form>
   );
 }
